@@ -45,7 +45,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Final accumulation kernel
     point_t *res;
     CUDA_WRAPPER(cudaMallocManaged(&res, 3 * 4 * sizeof(uint64_t)));
-    final_accumulation_kernel<<<1, 4, 0, stream>>>(final_sum, res, windows, c);
+    final_accumulation_kernel<<<80, 256, 0, stream>>>(final_sum, res, windows, c);//kernel launch optimized from <<<1, 4, 0>>>
     
     // Synchronize stream
     cudaStreamSynchronize(stream);

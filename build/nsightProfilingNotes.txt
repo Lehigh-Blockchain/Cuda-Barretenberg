@@ -1,0 +1,6 @@
+To Profile via Nvidia Nsight
+
+1. Connect to process with correct start bath and executable name (make sure pippenger is compiled)
+2. Run a profile without auto profile on and quickly pause
+3. Turn on auto profile feature and resume profiling process
+4. Get money

@@ -45,7 +45,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Final accumulation kernel
     point_t *res;
     CUDA_WRAPPER(cudaMallocManaged(&res, 3 * 4 * sizeof(uint64_t)));
-    final_accumulation_kernel<<<80, 256, 0, stream>>>(final_sum, res, windows, c);//kernel launch optimized from <<<1, 4, 0>>>
+    final_accumulation_kernel<<<80, 256, 0, stream>>>(final_sum, res, windows, c);//kernel launch optimized from <<<1, 4, 0>>> by recomendation of nvidia nsight
     
     // Synchronize stream
     cudaStreamSynchronize(stream);
@@ -218,7 +218,7 @@ template <class point_t, class scalar_t>
 void pippenger_t<point_t, scalar_t>::verify_result(point_t *result_1, point_t **result_2) {
     var *result;
     CUDA_WRAPPER(cudaMallocManaged(&result, LIMBS * sizeof(uint64_t)));
-    comparator_kernel<<<1, 4>>>(result_1, result_2[0], result);
+    comparator_kernel<<<80, 128>>>(result_1, result_2[0], result);//launch params optimized by recommendation of nvidia nsight
     cudaDeviceSynchronize();
 
     assert (result[0] == 1);

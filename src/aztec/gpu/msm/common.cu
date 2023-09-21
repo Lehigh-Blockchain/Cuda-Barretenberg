@@ -40,7 +40,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
-    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(buckets, final_sum, c);
+    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(buckets, final_sum, c);//kernel launch optimized by tal already, changes to launch parameters make msm compute incorrectly
 
     // Final accumulation kernel
     point_t *res;

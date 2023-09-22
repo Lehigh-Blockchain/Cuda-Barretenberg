@@ -19,20 +19,21 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
     CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
-    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); 
+    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets);//launch parameters already optimized
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
     CUDA_WRAPPER(cudaMallocAsync(&(params->point_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
     split_scalars_kernel<<<NUM_POINTS / NUM_THREADS, NUM_THREADS, 0, stream>>>
-        (params->bucket_indices + npoints, params->point_indices + npoints, scalars, npoints, windows, c);
+        (params->bucket_indices + npoints, params->point_indices + npoints, scalars, npoints, windows, c);//launch parameters already optimized by tal
+    
 
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
 
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
-    unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
+    unsigned NUM_BLOCKS_2 = (((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4);//subtracting partial wave to try to optimize thread launch computes msm incorrectly; already optimized
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
         (buckets, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);

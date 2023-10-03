@@ -1,6 +1,8 @@
 #include "common.cuh"
 #include <cooperative_groups.h>
 #include <cuda.h>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 
 using namespace cooperative_groups;
 
@@ -237,7 +239,7 @@ __global__ void split_scalars_kernel
 /**
  * Accumulation kernel adds up points in each bucket -- this can be swapped out for efficient sum reduction kernel (tree reduction method)
  */
-__global__ void accumulate_buckets_kernel 
+/*__global__ void accumulate_buckets_kernel 
 (g1_gpu::element *buckets, unsigned *bucket_offsets, unsigned *bucket_sizes, unsigned *single_bucket_indices, 
 unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -288,7 +290,48 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
                 );
         }
     }
+}*/
+__global__
+void accumulate_buckets_kernel(g1_gpu::element *buckets, unsigned *bucket_offsets,
+ unsigned *bucket_sizes, unsigned *single_bucket_indices, 
+unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets){
+    thrust::device_vector<g1_gpu::element>bucketsThrust(num_buckets);//declaring argument array buckets to a thrust device vector
+    thrust::device_vector<unsigned>bucketOffsetThrust(num_buckets);//declaring device vector for bucket offsets
+    thrust::device_vector<unsigned>bucketSizesThrust(num_buckets);
+    thrust::device_vector<unsigned>singleBucketIndicesThrust(num_buckets);
+    //need a device vector for point indices
+    //need device vector for points
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;//possibly temporary
+    int count = 0;
+    if(buckets[count]!=NULL){//populate buckets thrust vector
+        while(count < num_buckets){
+            bucketsThrust[count] = buckets[count];
+            count++;
+        }
+    }
+    count = 0;
+    if(bucket_offsets[count] != NULL){//populate bucket offset thrust vector
+        while(count < num_buckets){
+            bucketOffsetThrust[count] = bucket_offsets[count];
+            count++;
+        }
+    }
+    count = 0;
+    if(bucket_sizes[count] != NULL){//populate bucket sizes thrust vector
+        while(count < num_buckets){
+            bucketSizesThrust[count] = bucket_sizes[count];
+            count++;
+        }
+    }
+    count = 0;
+    if(single_bucket_indices[count] != NULL){//populate single bucket index thrust vector
+        while(count < num_buckets){
+            singleBucketIndicesThrust[count] = single_bucket_indices[count];
+            count++;
+        }
+    }
 }
+
 
 /** 
  * Running sum kernel that accumulates partial bucket sums using running sum method

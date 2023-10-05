@@ -302,6 +302,25 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets){
     //need a device vector for point indices
     //need device vector for points
     int tid = blockIdx.x * blockDim.x + threadIdx.x;//possibly temporary
+    
+    //parameters for cooperative groups
+    auto grp = fixnum::layout();
+    int subgroup = grp.meta_group_rank();
+    int subgroup_size = grp.meta_group_size();
+
+    //Development Note/Question:
+    //Will we need bucket_index, bucket_size and bucket_offset variables 
+    //because the generated cuda will calculate these based off of blockId information that is generated at compile time
+    //or do we need to still hand write these values for use?
+
+    //Development Note/Question:
+    //How to get a variable for the number of x, y, z datas in each bucket?
+
+
+    //population of lists
+    if(/*bucket_size*/ == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
+        return;
+    }
     int count = 0;
     if(buckets[count]!=NULL){//populate buckets thrust vector
         while(count < num_buckets){
@@ -328,6 +347,27 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets){
         while(count < num_buckets){
             singleBucketIndicesThrust[count] = single_bucket_indices[count];
             count++;
+        }
+    }
+
+    //calculations
+    
+    //loop through bucket indices
+    //loop through each bucket size
+    //adding up each corresponding x, y, z 
+    //before iteration termination check if any of the corresponding z, y or z data is zero -> double if so
+    for(int i = 0; i < bucketsThrust.size; i++){
+        for(int j = 0; j < bucketSizesThrust[i]; j++){
+            //Development Note/Question:
+            //Use thrust reduce here or just make the call to the field addition Tal implemented?
+            //thrust::reduce(bucketsThrust.begin(), bucketsThrust.end()) this is hard because what should the initialization value be and 
+            //how should we define/give it a binary operation for the reduction?
+
+            //NOTE: this group add is calling function from group.cu file
+
+            if(/*zero condition*/){
+                //doubling; TODO same reduction issue as described above
+            }
         }
     }
 }

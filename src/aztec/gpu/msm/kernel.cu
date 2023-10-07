@@ -362,11 +362,33 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets){
             //Use thrust reduce here or just make the call to the field addition Tal implemented?
             //thrust::reduce(bucketsThrust.begin(), bucketsThrust.end()) this is hard because what should the initialization value be and 
             //how should we define/give it a binary operation for the reduction?
+            g1_gpu::add(
+                bucketsThrust[i].x.data[/*tid%4*/],
+                bucketsThrust[i].y.data[/*tid%4*/],
+                bucketsThrust[i].z.data[/*tid%4*/],
+                //point1,
+                //point2,
+                //point3,
+                bucketsThrust[i].x.data[/*tid%4*/],
+                bucketsThrust[i].y.data[/*tid%4*/],
+                bucketsThrust[i].z.data[/*tid%4*/]
+                );
 
             //NOTE: this group add is calling function from group.cu file
 
-            if(/*zero condition*/){
+            if(fq_gpu::is_zero(bucketsThrust[i].x.data[/*tid%4*/])
+                && fq_gpu::is_zero(bucketsThrust[i].y.data[/*tid%4*/])
+                && fq_gpu::is_zero(bucketsThrust[i].z.data[/*tid%4*/])
+            ){
                 //doubling; TODO same reduction issue as described above
+                g1_gpu::doubling(
+                    //point1,
+                    //point2,
+                    //point3,
+                    bucketsThrust[i].x.data[/*tid%4*/],
+                    bucketsThrust[i].y.data[/*tid%4*/],
+                    bucketsThrust[i].z.data[/*tid%4*/]
+                );
             }
         }
     }

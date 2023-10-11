@@ -291,6 +291,9 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
         }
     }
 }*/
+
+// NOTE: since we exchanged the four thread hardcoding for our naive iteration in the iterative thrust reduction, we may have to launch 
+//       the kernel with only one thread to maintain accuracy of msm results
 __global__
 void accumulate_buckets_kernel(g1_gpu::element *buckets, unsigned *bucket_offsets,
  unsigned *bucket_sizes, unsigned *single_bucket_indices, 
@@ -365,37 +368,39 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets, size_t n
     //before iteration termination check if any of the corresponding z, y or z data is zero -> double if so
     for(int i = 0; i < bucketsThrust.size; i++){
         for(int j = 0; j < bucketSizesThrust[i]; j++){
-            //Development Note/Question:
+            for(int k = 0; k < 4; k++){
+                //Development Note/Question:
             //Use thrust reduce here or just make the call to the field addition Tal implemented?
             //thrust::reduce(bucketsThrust.begin(), bucketsThrust.end()) this is hard because what should the initialization value be and 
             //how should we define/give it a binary operation for the reduction?
             g1_gpu::add(
-                bucketsThrust[i].x.data[/*tid%4*/],
-                bucketsThrust[i].y.data[/*tid%4*/],
-                bucketsThrust[i].z.data[/*tid%4*/],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[/*tid%4*/],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[/*tid%4*/],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[/*tid%4*/],
-                bucketsThrust[i].x.data[/*tid%4*/],
-                bucketsThrust[i].y.data[/*tid%4*/],
-                bucketsThrust[i].z.data[/*tid%4*/]
+                bucketsThrust[i].x.data[k],
+                bucketsThrust[i].y.data[k],
+                bucketsThrust[i].z.data[k],
+                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
+                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
+                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
+                bucketsThrust[i].x.data[k],
+                bucketsThrust[i].y.data[k],
+                bucketsThrust[i].z.data[k]
                 );
 
             //NOTE: this group add is calling function from group.cu file
 
-            if(fq_gpu::is_zero(bucketsThrust[i].x.data[/*tid%4*/])
-                && fq_gpu::is_zero(bucketsThrust[i].y.data[/*tid%4*/])
-                && fq_gpu::is_zero(bucketsThrust[i].z.data[/*tid%4*/])
+            if(fq_gpu::is_zero(bucketsThrust[i].x.data[k])
+                && fq_gpu::is_zero(bucketsThrust[i].y.data[k])
+                && fq_gpu::is_zero(bucketsThrust[i].z.data[k])
             ){
                 //doubling; TODO same reduction issue as described above
                 g1_gpu::doubling(
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[/*tid%4*/],
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[/*tid%4*/],
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[/*tid%4*/],
-                    bucketsThrust[i].x.data[/*tid%4*/],
-                    bucketsThrust[i].y.data[/*tid%4*/],
-                    bucketsThrust[i].z.data[/*tid%4*/]
+                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
+                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
+                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
+                    bucketsThrust[i].x.data[k],
+                    bucketsThrust[i].y.data[k],
+                    bucketsThrust[i].z.data[k]
                 );
+            }
             }
         }
     }

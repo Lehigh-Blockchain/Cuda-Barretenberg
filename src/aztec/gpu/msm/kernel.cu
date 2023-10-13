@@ -24,15 +24,16 @@ __global__ void multiplication_kernel(g1_gpu::element *point, fr_gpu *scalar, g1
     int subgroup_size = grp.meta_group_size();
 
     // 3 * N field multiplications
-    fq_gpu::mul(point[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3], 
-                scalar[(subgroup + (subgroup_size * blockIdx.x))].data[tid & 3], 
-                result_vec[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3]);
-    fq_gpu::mul(point[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3], 
-                scalar[(subgroup + (subgroup_size * blockIdx.x))].data[tid & 3], 
-                result_vec[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3]);
-    fq_gpu::mul(point[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3], 
-                scalar[(subgroup + (subgroup_size * blockIdx.x))].data[tid & 3], 
-                result_vec[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3]);
+    int idx = subgroup + (subgroup_size * blockIdx.x);
+    fq_gpu::mul(point[idx].x.data[tid & 3], 
+                scalar[idx].data[tid & 3], 
+                result_vec[idx].x.data[tid & 3]);
+    fq_gpu::mul(point[idx].y.data[tid & 3], 
+                scalar[idx].data[tid & 3], 
+                result_vec[idx].y.data[tid & 3]);
+    fq_gpu::mul(point[idx].z.data[tid & 3], 
+                scalar[idx].data[tid & 3], 
+                result_vec[idx].z.data[tid & 3]);
 }
 
 /**
@@ -250,9 +251,9 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     int subgroup_size = grp.meta_group_size();
 
     // Stores the indices, sizes, and offsets of the buckets and points
-    unsigned bucket_index = single_bucket_indices[(subgroup + (subgroup_size * blockIdx.x))];
-    unsigned bucket_size = bucket_sizes[(subgroup + (subgroup_size * blockIdx.x))];
-    unsigned bucket_offset = bucket_offsets[(subgroup + (subgroup_size * blockIdx.x))];
+    unsigned bucket_index = single_bucket_indices[idx];
+    unsigned bucket_size = bucket_sizes[idx];
+    unsigned bucket_offset = bucket_offsets[idx];
 
     // printf("bucket size is: %d", bucket_size);
 
@@ -410,13 +411,13 @@ __global__ void bucket_running_sum_kernel(g1_gpu::element *buckets, g1_gpu::elem
     g1_gpu::element line_sum;
 
     // Load intitial points
-    fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].x.data[tid & 3], line_sum.x.data[tid & 3]);
-    fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].y.data[tid & 3], line_sum.y.data[tid & 3]);
-    fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].z.data[tid & 3], line_sum.z.data[tid & 3]);
+    fq_gpu::load(buckets[(idx + 1) * (1 << c) - 1].x.data[tid & 3], line_sum.x.data[tid & 3]);
+    fq_gpu::load(buckets[(idx + 1) * (1 << c) - 1].y.data[tid & 3], line_sum.y.data[tid & 3]);
+    fq_gpu::load(buckets[(idx + 1) * (1 << c) - 1].z.data[tid & 3], line_sum.z.data[tid & 3]);
     
-    fq_gpu::load(line_sum.x.data[tid & 3], final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3]);
-    fq_gpu::load(line_sum.y.data[tid & 3], final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3]);
-    fq_gpu::load(line_sum.z.data[tid & 3], final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3]);
+    fq_gpu::load(line_sum.x.data[tid & 3], final_sum[idx].x.data[tid & 3]);
+    fq_gpu::load(line_sum.y.data[tid & 3], final_sum[idx].y.data[tid & 3]);
+    fq_gpu::load(line_sum.z.data[tid & 3], final_sum[idx].z.data[tid & 3]);
 
     // Sync loads
     __syncthreads();
@@ -424,9 +425,9 @@ __global__ void bucket_running_sum_kernel(g1_gpu::element *buckets, g1_gpu::elem
     // Running sum method
     for (unsigned i = (1 << c) - 2; i > 0; i--) {
         g1_gpu::add(
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].x.data[tid & 3], 
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].y.data[tid & 3], 
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].z.data[tid & 3],
+            buckets[idx * (1 << c) + i].x.data[tid & 3], 
+            buckets[idx * (1 << c) + i].y.data[tid & 3], 
+            buckets[idx * (1 << c) + i].z.data[tid & 3],
             line_sum.x.data[tid & 3],
             line_sum.y.data[tid & 3],
             line_sum.z.data[tid & 3],
@@ -439,24 +440,24 @@ __global__ void bucket_running_sum_kernel(g1_gpu::element *buckets, g1_gpu::elem
             line_sum.x.data[tid & 3],
             line_sum.y.data[tid & 3],
             line_sum.z.data[tid & 3],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3]
+            final_sum[idx].x.data[tid & 3],
+            final_sum[idx].y.data[tid & 3],
+            final_sum[idx].z.data[tid & 3],
+            final_sum[idx].x.data[tid & 3],
+            final_sum[idx].y.data[tid & 3],
+            final_sum[idx].z.data[tid & 3]
         );
 
-        if (fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3]) && 
-            fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3]) && 
-            fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3])) {
+        if (fq_gpu::is_zero(final_sum[idx].x.data[tid & 3]) && 
+            fq_gpu::is_zero(final_sum[idx].y.data[tid & 3]) && 
+            fq_gpu::is_zero(final_sum[idx].z.data[tid & 3])) {
                 g1_gpu::doubling(
                     line_sum.x.data[tid & 3],
                     line_sum.y.data[tid & 3],
                     line_sum.z.data[tid & 3],
-                    final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3],
-                    final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3],
-                    final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3]
+                    final_sum[idx].x.data[tid & 3],
+                    final_sum[idx].y.data[tid & 3],
+                    final_sum[idx].z.data[tid & 3]
                 );
         }
     }
@@ -520,9 +521,9 @@ __global__ void bucket_running_sum_kernel_2(g1_gpu::element *buckets, g1_gpu::el
             S.x.data[tid & 3],
             S.y.data[tid & 3],
             S.z.data[tid & 3], 
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << (M - 1)) + u].x.data[tid & 3],
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << (M - 1)) + u].y.data[tid & 3],
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << (M - 1)) + u].z.data[tid & 3],
+            buckets[idx * (1 << (M - 1)) + u].x.data[tid & 3],
+            buckets[idx * (1 << (M - 1)) + u].y.data[tid & 3],
+            buckets[idx * (1 << (M - 1)) + u].z.data[tid & 3],
             S.x.data[tid & 3],
             S.y.data[tid & 3],
             S.z.data[tid & 3]
@@ -566,9 +567,9 @@ __global__ void bucket_running_sum_kernel_3(g1_gpu::element *result, g1_gpu::ele
     // Add up each segement M for each window K
     for (unsigned m = 0; m < M - 1; m++) {  
         g1_gpu::add(
-            S_[(subgroup + (subgroup_size * blockIdx.x)) * (M - 1) + m].x.data[tid & 3],
-            S_[(subgroup + (subgroup_size * blockIdx.x)) * (M - 1) + m].y.data[tid & 3],
-            S_[(subgroup + (subgroup_size * blockIdx.x)) * (M - 1) + m].z.data[tid & 3],
+            S_[idx * (M - 1) + m].x.data[tid & 3],
+            S_[idx * (M - 1) + m].y.data[tid & 3],
+            S_[idx * (M - 1) + m].z.data[tid & 3],
             S.x.data[tid & 3],
             S.y.data[tid & 3],
             S.z.data[tid & 3], 
@@ -631,9 +632,9 @@ __global__ void bucket_running_sum_kernel_3(g1_gpu::element *result, g1_gpu::ele
             G_k.x.data[tid & 3],
             G_k.y.data[tid & 3],
             G_k.z.data[tid & 3],
-            G_[(subgroup + (subgroup_size * blockIdx.x)) * (M - 1) + m].x.data[tid & 3],
-            G_[(subgroup + (subgroup_size * blockIdx.x)) * (M - 1) + m].y.data[tid & 3],
-            G_[(subgroup + (subgroup_size * blockIdx.x)) * (M - 1) + m].z.data[tid & 3], 
+            G_[idx * (M - 1) + m].x.data[tid & 3],
+            G_[idx * (M - 1) + m].y.data[tid & 3],
+            G_[idx * (M - 1) + m].z.data[tid & 3], 
             G_k.x.data[tid & 3],
             G_k.y.data[tid & 3],
             G_k.z.data[tid & 3]
@@ -755,14 +756,14 @@ __global__ void affine_to_jacobian(g1_gpu::affine_element *a_point, g1_gpu::elem
     int subgroup_size = grp.meta_group_size();
 
     fq_gpu::load(
-        a_point[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3], 
-        j_point[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid & 3]
+        a_point[idx].x.data[tid & 3], 
+        j_point[idx].x.data[tid & 3]
     );
     fq_gpu::load(
-        a_point[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3], 
-        j_point[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid & 3]
+        a_point[idx].y.data[tid & 3], 
+        j_point[idx].y.data[tid & 3]
     );
-    fq_gpu::load(field_gpu<fq_gpu>::one().data[tid & 3], j_point[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid & 3]);
+    fq_gpu::load(field_gpu<fq_gpu>::one().data[tid & 3], j_point[idx].z.data[tid & 3]);
 }
 
 /**

@@ -51,19 +51,23 @@ __global__ void sum_reduction_kernel(g1_gpu::element *points, g1_gpu::element *r
     int subgroup = grp.meta_group_rank();
     int subgroup_size = grp.meta_group_size();
 
-    fq_gpu::load(points[(subgroup * 2) + ((2 * subgroup_size) * blockIdx.x)].x.data[tid & 3], 
-                partial_sum[subgroup * 2].x.data[tid & 3]);
-    fq_gpu::load(points[(subgroup * 2) + ((2 * subgroup_size) * blockIdx.x)].y.data[tid & 3], 
-                partial_sum[subgroup * 2].y.data[tid & 3]);
-    fq_gpu::load(points[(subgroup * 2) + ((2 * subgroup_size) * blockIdx.x)].z.data[tid & 3], 
-                partial_sum[subgroup * 2].z.data[tid & 3]);
+    // precompute indices
+    int partialSumIdx = subgroup * 2;
+    int pointIdx = partialSumIdx + ((2 * subgroup_size) * blockIdx.x);
 
-    fq_gpu::load(points[(subgroup * 2) + ((2 * subgroup_size) * blockIdx.x) + 1].x.data[tid & 3], 
-                partial_sum[(subgroup * 2) + 1].x.data[tid & 3]);
-    fq_gpu::load(points[(subgroup * 2) + ((2 * subgroup_size) * blockIdx.x) + 1].y.data[tid & 3], 
-                partial_sum[(subgroup * 2) + 1].y.data[tid & 3]);
-    fq_gpu::load(points[(subgroup * 2) + ((2 * subgroup_size) * blockIdx.x) + 1].z.data[tid & 3], 
-                partial_sum[(subgroup * 2) + 1].z.data[tid & 3]);
+    fq_gpu::load(points[pointIdx].x.data[tid & 3], 
+                partial_sum[partialSumIdx].x.data[tid & 3]);
+    fq_gpu::load(points[pointIdx].y.data[tid & 3], 
+                partial_sum[partialSumIdx].y.data[tid & 3]);
+    fq_gpu::load(points[pointIdx].z.data[tid & 3], 
+                partial_sum[partialSumIdx].z.data[tid & 3]);
+
+    fq_gpu::load(points[pointIdx + 1].x.data[tid & 3], 
+                partial_sum[partialSumIdx + 1].x.data[tid & 3]);
+    fq_gpu::load(points[pointIdx + 1].y.data[tid & 3], 
+                partial_sum[partialSumIdx + 1].y.data[tid & 3]);
+    fq_gpu::load(points[pointIdx + 1].z.data[tid & 3], 
+                partial_sum[partialSumIdx + 1].z.data[tid & 3]);
 
     // Local sync barrier for load operations
     __syncthreads();
@@ -85,13 +89,13 @@ __global__ void sum_reduction_kernel(g1_gpu::element *points, g1_gpu::element *r
     for (int s = 0; s < log2f(blockDim.x) - 1; s++) {
         if (threadIdx.x < t) {
             g1_gpu::add(
-                // This indexing is not correct!
-                partial_sum[subgroup * 2].x.data[tid & 3], 
-                partial_sum[subgroup * 2].y.data[tid & 3], 
-                partial_sum[subgroup * 2].z.data[tid & 3], 
-                partial_sum[(subgroup * 2) + 1].x.data[tid & 3], 
-                partial_sum[(subgroup * 2) + 1].y.data[tid & 3], 
-                partial_sum[(subgroup * 2) + 1].z.data[tid & 3], 
+                // This indexing is not correct! recall that partialSumIdx = subgroup * 2
+                partial_sum[partialSumIdx].x.data[tid & 3], 
+                partial_sum[partialSumIdx].y.data[tid & 3], 
+                partial_sum[partialSumIdx].z.data[tid & 3], 
+                partial_sum[partialSumIdx + 1].x.data[tid & 3], 
+                partial_sum[partialSumIdx + 1].y.data[tid & 3], 
+                partial_sum[partialSumIdx + 1].z.data[tid & 3], 
                 partial_sum[subgroup].x.data[tid & 3], 
                 partial_sum[subgroup].y.data[tid & 3], 
                 partial_sum[subgroup].z.data[tid & 3]

@@ -24,7 +24,7 @@ __global__ void multiplication_kernel(g1_gpu::element *point, fr_gpu *scalar, g1
     int subgroup_size = grp.meta_group_size();
 
     // 3 * N field multiplications
-    int idx = subgroup + (subgroup_size * blockIdx.x);
+    int idx = bucketIdx;
     fq_gpu::mul(point[idx].x.data[tid & 3], 
                 scalar[idx].data[tid & 3], 
                 result_vec[idx].x.data[tid & 3]);
@@ -194,9 +194,12 @@ __global__ void initialize_buckets_kernel(g1_gpu::element *bucket) {
     int subgroup = grp.meta_group_rank();
     int subgroup_size = grp.meta_group_size();
 
-    fq_gpu::load(fq_gpu::zero().data[tid & 3], bucket[subgroup + (subgroup_size * blockIdx.x)].x.data[tid & 3]);
-    fq_gpu::load(fq_gpu::zero().data[tid & 3], bucket[subgroup + (subgroup_size * blockIdx.x)].y.data[tid & 3]);
-    fq_gpu::load(fq_gpu::zero().data[tid & 3], bucket[subgroup + (subgroup_size * blockIdx.x)].z.data[tid & 3]);
+    // precompute bucket index
+    int bucketIdx = subgroup + (subgroup_size * blockIdx.x);
+
+    fq_gpu::load(fq_gpu::zero().data[tid & 3], bucket[bucketIdx].x.data[tid & 3]);
+    fq_gpu::load(fq_gpu::zero().data[tid & 3], bucket[bucketIdx].y.data[tid & 3]);
+    fq_gpu::load(fq_gpu::zero().data[tid & 3], bucket[bucketIdx].z.data[tid & 3]);
 }
 
 /**
@@ -300,8 +303,8 @@ __global__
 void accumulate_buckets_kernel(g1_gpu::element *buckets, unsigned *bucket_offsets,
  unsigned *bucket_sizes, unsigned *single_bucket_indices, 
 unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets){
-    thrust::device_vector<g1_gpu::element>bucketsThrust(num_buckets);//declaring argument array buckets to a thrust device vector
-    thrust::device_vector<unsigned>bucketOffsetThrust(num_buckets);//declaring device vector for bucket offsets
+    thrust::device_vector<g1_gpu::element>bucketsThrust(num_buckets); // declaring argument array buckets to a thrust device vector
+    thrust::device_vector<unsigned>bucketOffsetThrust(num_buckets); // declaring device vector for bucket offsets
     thrust::device_vector<unsigned>bucketSizesThrust(num_buckets);
     thrust::device_vector<unsigned>singleBucketIndicesThrust(num_buckets);
     //need a device vector for point indices

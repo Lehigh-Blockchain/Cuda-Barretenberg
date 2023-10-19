@@ -321,44 +321,44 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets, size_t n
 
 
     //population of lists
-    if(/*bucket_size*/ == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
+    if(num_buckets == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
         return;
     }
     int count = 0;
-    if(buckets[count]!=NULL){//populate buckets thrust vector
+    //if(buckets[count]!=NULL){//populate buckets thrust vector
         while(count < num_buckets){
             bucketsThrust[count] = buckets[count];
             count++;
         }
-    }
+    //}
     count = 0;
-    if(bucket_offsets[count] != NULL){//populate bucket offset thrust vector
+    //if(bucket_offsets[count] != NULL){//populate bucket offset thrust vector
         while(count < num_buckets){
             bucketOffsetThrust[count] = bucket_offsets[count];
             count++;
         }
-    }
+    //}
     count = 0;
-    if(bucket_sizes[count] != NULL){//populate bucket sizes thrust vector
+    //if(bucket_sizes[count] != NULL){//populate bucket sizes thrust vector
         while(count < num_buckets){
             bucketSizesThrust[count] = bucket_sizes[count];
             count++;
         }
-    }
+    //}
     count = 0;
-    if(single_bucket_indices[count] != NULL){//populate single bucket index thrust vector
+    //if(single_bucket_indices[count] != NULL){//populate single bucket index thrust vector
         while(count < num_buckets){
             singleBucketIndicesThrust[count] = single_bucket_indices[count];
             count++;
         }
-    }
+    //}
     count = 0;
-    if(points[count] != NULL){//populate points thrust vector
+    //if(points[count] != NULL){//populate points thrust vector
         while(count < num_points){
             pointsThrust[count] = points[count];
             count++;
         }
-    }
+    //}
 
     //calculations
     

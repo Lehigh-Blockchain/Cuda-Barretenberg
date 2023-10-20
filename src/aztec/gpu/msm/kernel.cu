@@ -295,115 +295,115 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
 // NOTE: since we exchanged the four thread hardcoding for our naive iteration in the iterative thrust reduction, we may have to launch 
 //       the kernel with only one thread to maintain accuracy of msm results
 __global__
-void accumulate_buckets_kernel(g1_gpu::element *buckets, unsigned *bucket_offsets,
+void accumulate_buckets_kernel(thrust::device_vector<g1_gpu::element> *buckets, unsigned *bucket_offsets,
  unsigned *bucket_sizes, unsigned *single_bucket_indices, 
 unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets, size_t num_points){//new parameter for num points?
-    thrust::device_vector<g1_gpu::element>bucketsThrust(num_buckets);//declaring argument array buckets to a thrust device vector
-    thrust::device_vector<unsigned>bucketOffsetThrust(num_buckets);//declaring device vector for bucket offsets
-    thrust::device_vector<unsigned>bucketSizesThrust(num_buckets);
-    thrust::device_vector<unsigned>singleBucketIndicesThrust(num_buckets);
-    thrust::device_vector<g1_gpu::element>pointsThrust(num_points);
-    //need device vector for points
-    
-    //parameters for cooperative groups
-    auto grp = fixnum::layout();
-    int subgroup = grp.meta_group_rank();
-    int subgroup_size = grp.meta_group_size();
-
-    //Development Note/Question:
-    //Will we need bucket_index, bucket_size and bucket_offset variables 
-    //because the generated cuda will calculate these based off of blockId information that is generated at compile time
-    //or do we need to still hand write these values for use?
-    unsigned bucket_offset = bucketOffsetThrust[subgroup + subgroup_size];//not using block id multiplier; assuming thrust will do that in code generation
-
-    //Development Note/Question:
-    //How to get a variable for the number of x, y, z datas in each bucket?
-
-
-    //population of lists
-    if(num_buckets == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
-        return;
-    }
-    int count = 0;
-    //if(buckets[count]!=NULL){//populate buckets thrust vector
-        while(count < num_buckets){
-            bucketsThrust[count] = buckets[count];
-            count++;
-        }
+    //thrust::device_vector<g1_gpu::element>bucketsThrust(num_buckets);//declaring argument array buckets to a thrust device vector
+    //thrust::device_vector<unsigned>bucketOffsetThrust(num_buckets);//declaring device vector for bucket offsets
+    //thrust::device_vector<unsigned>bucketSizesThrust(num_buckets);
+    //thrust::device_vector<unsigned>singleBucketIndicesThrust(num_buckets);
+    //thrust::device_vector<g1_gpu::element>pointsThrust(num_points);
+    ////need device vector for points
+    //
+    ////parameters for cooperative groups
+    //auto grp = fixnum::layout();
+    //int subgroup = grp.meta_group_rank();
+    //int subgroup_size = grp.meta_group_size();
+//
+    ////Development Note/Question:
+    ////Will we need bucket_index, bucket_size and bucket_offset variables 
+    ////because the generated cuda will calculate these based off of blockId information that is generated at compile time
+    ////or do we need to still hand write these values for use?
+    //unsigned bucket_offset = bucketOffsetThrust[subgroup + subgroup_size];//not using block id multiplier; assuming thrust will do that in code generation
+//
+    ////Development Note/Question:
+    ////How to get a variable for the number of x, y, z datas in each bucket?
+//
+//
+    ////population of lists
+    //if(num_buckets == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
+    //    return;
     //}
-    count = 0;
-    //if(bucket_offsets[count] != NULL){//populate bucket offset thrust vector
-        while(count < num_buckets){
-            bucketOffsetThrust[count] = bucket_offsets[count];
-            count++;
-        }
-    //}
-    count = 0;
-    //if(bucket_sizes[count] != NULL){//populate bucket sizes thrust vector
-        while(count < num_buckets){
-            bucketSizesThrust[count] = bucket_sizes[count];
-            count++;
-        }
-    //}
-    count = 0;
-    //if(single_bucket_indices[count] != NULL){//populate single bucket index thrust vector
-        while(count < num_buckets){
-            singleBucketIndicesThrust[count] = single_bucket_indices[count];
-            count++;
-        }
-    //}
-    count = 0;
-    //if(points[count] != NULL){//populate points thrust vector
-        while(count < num_points){
-            pointsThrust[count] = points[count];
-            count++;
-        }
-    //}
-
-    //calculations
-    
-    //loop through bucket indices
-    //loop through each bucket size
-    //adding up each corresponding x, y, z 
-    //before iteration termination check if any of the corresponding z, y or z data is zero -> double if so
-    for(int i = 0; i < bucketsThrust.size; i++){
-        for(int j = 0; j < bucketSizesThrust[i]; j++){
-            for(int k = 0; k < 4; k++){
-                //Development Note/Question:
-            //Use thrust reduce here or just make the call to the field addition Tal implemented?
-            //thrust::reduce(bucketsThrust.begin(), bucketsThrust.end()) this is hard because what should the initialization value be and 
-            //how should we define/give it a binary operation for the reduction?
-            g1_gpu::add(
-                bucketsThrust[i].x.data[k],
-                bucketsThrust[i].y.data[k],
-                bucketsThrust[i].z.data[k],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
-                bucketsThrust[i].x.data[k],
-                bucketsThrust[i].y.data[k],
-                bucketsThrust[i].z.data[k]
-                );
-
-            //NOTE: this group add is calling function from group.cu file
-
-            if(fq_gpu::is_zero(bucketsThrust[i].x.data[k])
-                && fq_gpu::is_zero(bucketsThrust[i].y.data[k])
-                && fq_gpu::is_zero(bucketsThrust[i].z.data[k])
-            ){
-                //doubling; TODO same reduction issue as described above
-                g1_gpu::doubling(
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
-                    bucketsThrust[i].x.data[k],
-                    bucketsThrust[i].y.data[k],
-                    bucketsThrust[i].z.data[k]
-                );
-            }
-            }
-        }
-    }
+    //int count = 0;
+    ////if(buckets[count]!=NULL){//populate buckets thrust vector
+    //    while(count < num_buckets){
+    //        bucketsThrust[count] = buckets[count];
+    //        count++;
+    //    }
+    ////}
+    //count = 0;
+    ////if(bucket_offsets[count] != NULL){//populate bucket offset thrust vector
+    //    while(count < num_buckets){
+    //        bucketOffsetThrust[count] = bucket_offsets[count];
+    //        count++;
+    //    }
+    ////}
+    //count = 0;
+    ////if(bucket_sizes[count] != NULL){//populate bucket sizes thrust vector
+    //    while(count < num_buckets){
+    //        bucketSizesThrust[count] = bucket_sizes[count];
+    //        count++;
+    //    }
+    ////}
+    //count = 0;
+    ////if(single_bucket_indices[count] != NULL){//populate single bucket index thrust vector
+    //    while(count < num_buckets){
+    //        singleBucketIndicesThrust[count] = single_bucket_indices[count];
+    //        count++;
+    //    }
+    ////}
+    //count = 0;
+    ////if(points[count] != NULL){//populate points thrust vector
+    //    while(count < num_points){
+    //        pointsThrust[count] = points[count];
+    //        count++;
+    //    }
+    ////}
+//
+    ////calculations
+    //
+    ////loop through bucket indices
+    ////loop through each bucket size
+    ////adding up each corresponding x, y, z 
+    ////before iteration termination check if any of the corresponding z, y or z data is zero -> double if so
+    //for(int i = 0; i < bucketsThrust.size; i++){
+    //    for(int j = 0; j < bucketSizesThrust[i]; j++){
+    //        for(int k = 0; k < 4; k++){
+    //            //Development Note/Question:
+    //        //Use thrust reduce here or just make the call to the field addition Tal implemented?
+    //        //thrust::reduce(bucketsThrust.begin(), bucketsThrust.end()) this is hard because what should the initialization value be and 
+    //        //how should we define/give it a binary operation for the reduction?
+    //        g1_gpu::add(
+    //            bucketsThrust[i].x.data[k],
+    //            bucketsThrust[i].y.data[k],
+    //            bucketsThrust[i].z.data[k],
+    //            pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
+    //            pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
+    //            pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
+    //            bucketsThrust[i].x.data[k],
+    //            bucketsThrust[i].y.data[k],
+    //            bucketsThrust[i].z.data[k]
+    //            );
+//
+    //        //NOTE: this group add is calling function from group.cu file
+//
+    //        if(fq_gpu::is_zero(bucketsThrust[i].x.data[k])
+    //            && fq_gpu::is_zero(bucketsThrust[i].y.data[k])
+    //            && fq_gpu::is_zero(bucketsThrust[i].z.data[k])
+    //        ){
+    //            //doubling; TODO same reduction issue as described above
+    //            g1_gpu::doubling(
+    //                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
+    //                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
+    //                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
+    //                bucketsThrust[i].x.data[k],
+    //                bucketsThrust[i].y.data[k],
+    //                bucketsThrust[i].z.data[k]
+    //            );
+    //        }
+    //        }
+    //    }
+    //}//for thrust compilation issues
 }
 
 

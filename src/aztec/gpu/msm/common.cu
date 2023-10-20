@@ -33,8 +33,9 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
     unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
+    thrust::device_vector<g1_gpu::element>bucketsThrust(config.num_buckets);//for compilation testing
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
-        (buckets, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
+        (&bucketsThrust, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets, npoints);
 
     // Running sum kernel

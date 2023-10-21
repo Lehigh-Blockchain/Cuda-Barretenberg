@@ -1,6 +1,8 @@
 #include "kernel.cu"
 #include <iostream>
 #include <vector>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 
 namespace pippenger_common {
 
@@ -33,10 +35,30 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
     unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
-    thrust::device_vector<g1_gpu::element>bucketsThrust(config.num_buckets);//for compilation testing
+    //thrust vector declaration
+    thrust::device_vector<g1_gpu::element>bucketsThrust(config.num_buckets);
+    thrust::device_vector<unsigned>bucketOffsetThrust(config.num_buckets);
+    thrust::device_vector<unsigned>bucketSizesThrust(config.num_buckets);
+    thrust::device_vector<unsigned>singleBucketIndicesThrust(config.num_buckets);
+    thrust::device_vector<g1_gpu::element>pointsThrust(npoints);
+    //thrust vector initialization
+    int count = 0;
+    while(count < num_buckets){
+        bucketsThrust[count] = buckets[count];
+        count++;
+    }
+    count = 0;
+    while(count < num_buckets){
+        bucketOffsetThrust[count] = params->bucket_offsets[count];
+        count++;
+    }
+
+    // TODO finish vector intialization, change launch params, clean kernel
+    
+    //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
-        (&bucketsThrust, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
-        params->point_indices, points, config.num_buckets, npoints);
+        (&bucketsThrust, /*params->bucket_offsets*/&bucketOffsetThrust, /*params->bucket_sizes*/&bucketSizesThrust, /*params->single_bucket_indices*/&singleBucketIndicesThrust, 
+        params->point_indices, &pointsThrust, config.num_buckets, npoints);
 
     // Running sum kernel
     point_t *final_sum;

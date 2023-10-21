@@ -295,20 +295,16 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
 // NOTE: since we exchanged the four thread hardcoding for our naive iteration in the iterative thrust reduction, we may have to launch 
 //       the kernel with only one thread to maintain accuracy of msm results
 __global__
-void accumulate_buckets_kernel(thrust::device_vector<g1_gpu::element> *buckets, unsigned *bucket_offsets,
- unsigned *bucket_sizes, unsigned *single_bucket_indices, 
-unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets, size_t num_points){//new parameter for num points?
-    //thrust::device_vector<g1_gpu::element>bucketsThrust(num_buckets);//declaring argument array buckets to a thrust device vector
-    //thrust::device_vector<unsigned>bucketOffsetThrust(num_buckets);//declaring device vector for bucket offsets
-    //thrust::device_vector<unsigned>bucketSizesThrust(num_buckets);
-    //thrust::device_vector<unsigned>singleBucketIndicesThrust(num_buckets);
-    //thrust::device_vector<g1_gpu::element>pointsThrust(num_points);
+void accumulate_buckets_kernel(thrust::device_vector<g1_gpu::element> *buckets, thrust::device_vector<unsigned> *bucket_offsets,
+ thrust::device_vector<unsigned> *bucket_sizes, thrust::device_vector<unsigned> *single_bucket_indices, 
+unsigned *point_indices, thrust::device_vector<g1_gpu::element> *points, unsigned num_buckets, size_t num_points){//new parameter for num points?
+    
     ////need device vector for points
     //
     ////parameters for cooperative groups
-    //auto grp = fixnum::layout();
-    //int subgroup = grp.meta_group_rank();
-    //int subgroup_size = grp.meta_group_size();
+    auto grp = fixnum::layout();
+    int subgroup = grp.meta_group_rank();
+    int subgroup_size = grp.meta_group_size();
 //
     ////Development Note/Question:
     ////Will we need bucket_index, bucket_size and bucket_offset variables 
@@ -321,23 +317,10 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets, size_t n
 //
 //
     ////population of lists
-    //if(num_buckets == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
-    //    return;
-    //}
-    //int count = 0;
-    ////if(buckets[count]!=NULL){//populate buckets thrust vector
-    //    while(count < num_buckets){
-    //        bucketsThrust[count] = buckets[count];
-    //        count++;
-    //    }
-    ////}
-    //count = 0;
-    ////if(bucket_offsets[count] != NULL){//populate bucket offset thrust vector
-    //    while(count < num_buckets){
-    //        bucketOffsetThrust[count] = bucket_offsets[count];
-    //        count++;
-    //    }
-    ////}
+    if(num_buckets == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
+        return;
+    }
+
     //count = 0;
     ////if(bucket_sizes[count] != NULL){//populate bucket sizes thrust vector
     //    while(count < num_buckets){

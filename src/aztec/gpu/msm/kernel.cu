@@ -302,6 +302,11 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     /// indeed we want buckets[bucket_index] to store our results -- BUT -- do we really want to pull our parameters from
     /// there? I think not. I think we should pull BOTH element parameters from points[]. 
 
+    /// NB: The above is long. The problem is simple in nature. We just need to figure out where to store the result of
+    /// calling thrust::reduce, and we need to figure out what data from buckets OR from points we need to pull as our
+    /// first and last iterators in the call to thrust::reduce. If we can do this, we should have a working thrust
+    /// implementation of accumulate_buckets. 
+
     // --------- OLD CODE BELOW ----------
     //Naive for loop implementation, iterates over the buckets and adds them together. Bottleneck.
     // for (unsigned i = 0; i < bucket_size; i++) { 

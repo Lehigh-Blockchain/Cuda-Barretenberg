@@ -73,6 +73,11 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
         (&bucketsThrust, &bucketOffsetThrust, &bucketSizesThrust, &singleBucketIndicesThrust, 
         params->point_indices, &pointsThrust, config.num_buckets, npoints);
 
+    //repopulation of buckets after thrust
+    for(int i = 0; i < num_buckets; i++){
+        buckets[i] = bucketsThrust[i];
+    }
+
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));

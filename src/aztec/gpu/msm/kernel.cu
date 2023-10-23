@@ -237,14 +237,40 @@ __global__ void split_scalars_kernel
 }
 
 /**
- * Accumulation kernel adds up points in each bucket -- this can be swapped out for efficient sum reduction kernel (tree reduction method)
+ * Struct to wrap x, y, z coordinates for both points and the result parameters for gpu::add to allow for a binary
+ * operation. Note: thrust::reduce takes in as its 'operator' parameter a model of the BinaryOperation class, which
+ * can be instantiated as a struct as follows:
  */
-/*__global__ void accumulate_buckets_kernel 
+struct binaryElementAdd : std::binary_function<g1_gpu::element, g1_gpu::element, g1_gpu::element> {
+    g1_gpu::element __device__ operator()(g1_gpu::element element_a, g1_gpu::element element_b) const { 
+        g1_gpu::element result(element_a);
+
+        g1_gpu::add(
+            //no need to concern with tid things that are handled in the accumulate_buckets kernel, thrust will provide
+            *element_a.x.data,
+            *element_a.y.data,
+            *element_a.z.data,
+            *element_b.x.data,
+            *element_b.y.data,
+            *element_b.z.data,
+            *result.x.data,
+            *result.y.data,
+            *result.z.data
+        );
+        return result;
+    }
+}; 
+
+/**
+ * Accumulation kernel adds up points in each bucket -- this can be swapped out for efficient sum reduction kernel (tree reduction method)
+ * NB: Getting swapped out for efficient sum reduce kernel (thrust::reduce)
+ */
+__global__ void accumulate_buckets_kernel 
 (g1_gpu::element *buckets, unsigned *bucket_offsets, unsigned *bucket_sizes, unsigned *single_bucket_indices, 
 unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Parameters for coperative groups
+    // Parameters for cooperative groups
     auto grp = fixnum::layout();
     int subgroup = grp.meta_group_rank();
     int subgroup_size = grp.meta_group_size();
@@ -254,7 +280,7 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     unsigned bucket_size = bucket_sizes[(subgroup + (subgroup_size * blockIdx.x))];
     unsigned bucket_offset = bucket_offsets[(subgroup + (subgroup_size * blockIdx.x))];
 
-    // printf("bucket size is: %d", bucket_size);
+    printf("bucket size is: %d", bucket_size);
 
     // Sync loads
     grp.sync();
@@ -264,107 +290,121 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
         return;
     }
 
-    for (unsigned i = 0; i < bucket_size; i++) { 
-        g1_gpu::add(
-            buckets[bucket_index].x.data[tid % 4], 
-            buckets[bucket_index].y.data[tid % 4], 
-            buckets[bucket_index].z.data[tid % 4], 
-            points[point_indices[bucket_offset + i]].x.data[tid % 4], 
-            points[point_indices[bucket_offset + i]].y.data[tid % 4], 
-            points[point_indices[bucket_offset + i]].z.data[tid % 4], 
-            buckets[bucket_index].x.data[tid % 4], 
-            buckets[bucket_index].y.data[tid % 4], 
-            buckets[bucket_index].z.data[tid % 4]
-        );
+    //The following thrust::reduce call should generate CUDA code that executes our reduction problem as a
+    //tree reduce. This should scale this kernel from O(n/4) to O(lgn).
 
-        if (fq_gpu::is_zero(buckets[bucket_index].x.data[tid % 4]) && 
-            fq_gpu::is_zero(buckets[bucket_index].y.data[tid % 4]) && 
-            fq_gpu::is_zero(buckets[bucket_index].z.data[tid % 4])) {
-                g1_gpu::doubling(
-                    points[point_indices[bucket_offset + i]].x.data[tid % 4], 
-                    points[point_indices[bucket_offset + i]].y.data[tid % 4], 
-                    points[point_indices[bucket_offset + i]].z.data[tid % 4], 
-                    buckets[bucket_index].x.data[tid % 4], 
-                    buckets[bucket_index].y.data[tid % 4], 
-                    buckets[bucket_index].z.data[tid % 4]
-                );
-        }
-    }
-}*/
+    /// NB: Unsure how to do this next bit: what we want to do is use thrust::reduce to add up all the points in the
+    /// individual buckets, and then return buckets with buckets[bucket_index] modified to be a single element returned
+    /// by thrust reduce. Doesn't seem that bad, but considering that it is pretty vague where we are even pulling our
+    /// elements from it seems murky. For the adventurer who plunders here: consider this, that buckets[bucket_index] and
+    /// points[point_indices[bucketoffset + i]] both store the ith and ith + 1 element respectively. Then, Tal stores
+    /// the result in the SAME place we pulled the first three add parameters from: buckets[bucket_index]. Therefore,
+    /// indeed we want buckets[bucket_index] to store our results -- BUT -- do we really want to pull our parameters from
+    /// there? I think not. I think we should pull BOTH element parameters from points[]. 
+
+    // --------- OLD CODE BELOW ----------
+    //Naive for loop implementation, iterates over the buckets and adds them together. Bottleneck.
+    // for (unsigned i = 0; i < bucket_size; i++) { 
+    //     g1_gpu::add(
+    //         buckets[bucket_index].x.data[tid % 4], 
+    //         buckets[bucket_index].y.data[tid % 4], 
+    //         buckets[bucket_index].z.data[tid % 4], 
+    //         points[point_indices[bucket_offset + i]].x.data[tid % 4], 
+    //         points[point_indices[bucket_offset + i]].y.data[tid % 4], 
+    //         points[point_indices[bucket_offset + i]].z.data[tid % 4], 
+    //         buckets[bucket_index].x.data[tid % 4], 
+    //         buckets[bucket_index].y.data[tid % 4], 
+    //         buckets[bucket_index].z.data[tid % 4]
+    //     );
+
+    //     if (fq_gpu::is_zero(buckets[bucket_index].x.data[tid % 4]) && 
+    //         fq_gpu::is_zero(buckets[bucket_index].y.data[tid % 4]) && 
+    //         fq_gpu::is_zero(buckets[bucket_index].z.data[tid % 4])) {
+    //             g1_gpu::doubling(
+    //                 points[point_indices[bucket_offset + i]].x.data[tid % 4], 
+    //                 points[point_indices[bucket_offset + i]].y.data[tid % 4], 
+    //                 points[point_indices[bucket_offset + i]].z.data[tid % 4], 
+    //                 buckets[bucket_index].x.data[tid % 4], 
+    //                 buckets[bucket_index].y.data[tid % 4], 
+    //                 buckets[bucket_index].z.data[tid % 4]
+    //             );
+    //     }
+    // }
+}
 
 // NOTE: since we exchanged the four thread hardcoding for our naive iteration in the iterative thrust reduction, we may have to launch 
 //       the kernel with only one thread to maintain accuracy of msm results
-__global__
-void accumulate_buckets_kernel(thrust::device_vector<g1_gpu::element> *bucketsThrust, thrust::device_vector<unsigned> *bucketOffsetThrust,
- thrust::device_vector<unsigned> *bucketSizesThrust, thrust::device_vector<unsigned> *singleBucketIndicesThrust, 
-unsigned *point_indices, thrust::device_vector<g1_gpu::element> *pointsThrust, unsigned num_buckets, size_t num_points){//new parameter for num points?
+// __global__
+// void accumulate_buckets_kernel(thrust::device_vector<g1_gpu::element> bucketsThrust, thrust::device_vector<unsigned> *bucketOffsetThrust,
+//  thrust::device_vector<unsigned> *bucketSizesThrust, thrust::device_vector<unsigned> *singleBucketIndicesThrust, 
+// unsigned *point_indices, thrust::device_vector<g1_gpu::element> *pointsThrust, unsigned num_buckets, size_t num_points){//new parameter for num points?
     
-    ////need device vector for points
-    //
-    ////parameters for cooperative groups
-    auto grp = fixnum::layout();
-    int subgroup = grp.meta_group_rank();
-    int subgroup_size = grp.meta_group_size();
-//
-    ////Development Note/Question:
-    ////Will we need bucket_index, bucket_size and bucket_offset variables 
-    ////because the generated cuda will calculate these based off of blockId information that is generated at compile time
-    ////or do we need to still hand write these values for use?
-    //unsigned bucket_offset = bucketOffsetThrust[subgroup + subgroup_size];//not using block id multiplier; assuming thrust will do that in code generation
-//
-    ////Development Note/Question:
-    ////How to get a variable for the number of x, y, z datas in each bucket?
-//
-//
-    ////population of lists
-    if(num_buckets == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
-        return;
-    }
+//     ////need device vector for points
+//     //
+//     ////parameters for cooperative groups
+//     auto grp = fixnum::layout();
+//     int subgroup = grp.meta_group_rank();
+//     int subgroup_size = grp.meta_group_size();
+// //
+//     ////Development Note/Question:
+//     ////Will we need bucket_index, bucket_size and bucket_offset variables 
+//     ////because the generated cuda will calculate these based off of blockId information that is generated at compile time
+//     ////or do we need to still hand write these values for use?
+//     //unsigned bucket_offset = bucketOffsetThrust[subgroup + subgroup_size];//not using block id multiplier; assuming thrust will do that in code generation
+// //
+//     ////Development Note/Question:
+//     ////How to get a variable for the number of x, y, z datas in each bucket?
+// //
+// //
+//     ////population of lists
+//     if(num_buckets == 0){//returning case of empty bucket; TODO figure out bucket size unsigned variable details
+//         return;
+//     }
 
     
-    ////calculations
-    //
-    ////loop through bucket indices
-    ////loop through each bucket size
-    ////adding up each corresponding x, y, z 
-    ////before iteration termination check if any of the corresponding z, y or z data is zero -> double if so
-    for(int i = 0; i < bucketsThrust.size; i++){
-        for(int j = 0; j < bucketSizesThrust[i]; j++){
-            for(int k = 0; k < 4; k++){
-                //Development Note/Question:
-            //Use thrust reduce here or just make the call to the field addition Tal implemented?
-            //thrust::reduce(bucketsThrust.begin(), bucketsThrust.end()) this is hard because what should the initialization value be and 
-            //how should we define/give it a binary operation for the reduction?
-            g1_gpu::add(
-                bucketsThrust[i].x.data[k],
-                bucketsThrust[i].y.data[k],
-                bucketsThrust[i].z.data[k],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
-                pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
-                bucketsThrust[i].x.data[k],
-                bucketsThrust[i].y.data[k],
-                bucketsThrust[i].z.data[k]
-                );
-         //NOTE: this group add is calling function from group.cu file
-         if(fq_gpu::is_zero(bucketsThrust[i].x.data[k])
-                && fq_gpu::is_zero(bucketsThrust[i].y.data[k])
-                && fq_gpu::is_zero(bucketsThrust[i].z.data[k])
-            ){
-                //doubling; TODO same reduction issue as described above
-                g1_gpu::doubling(
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
-                    pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
-                    bucketsThrust[i].x.data[k],
-                    bucketsThrust[i].y.data[k],
-                    bucketsThrust[i].z.data[k]
-                );
-            }
-            }
-        }
-    }
-}
+//     ////calculations
+//     //
+//     ////loop through bucket indices
+//     ////loop through each bucket size
+//     ////adding up each corresponding x, y, z 
+//     ////before iteration termination check if any of the corresponding x, y or z data is zero -> double if so
+//     for(int i = 0; i < bucketsThrust.size(); i++){
+//         for(int j = 0; j < bucketSizesThrust[i]; j++){
+//             for(int k = 0; k < 4; k++){
+//                 //Development Note/Question:
+//             //Use thrust reduce here or just make the call to the field addition Tal implemented?
+//             //thrust::reduce(bucketsThrust.begin(), bucketsThrust.end()) this is hard because what should the initialization value be and 
+//             //how should we define/give it a binary operation for the reduction?
+//             g1_gpu::add(
+//                 bucketsThrust[i].x.data[k],
+//                 bucketsThrust[i].y.data[k],
+//                 bucketsThrust[i].z.data[k],
+//                 pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
+//                 pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
+//                 pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
+//                 bucketsThrust[i].x.data[k],
+//                 bucketsThrust[i].y.data[k],
+//                 bucketsThrust[i].z.data[k]
+//                 );
+//          //NOTE: this group add is calling function from group.cu file
+//          if(fq_gpu::is_zero(bucketsThrust[i].x.data[k])
+//                 && fq_gpu::is_zero(bucketsThrust[i].y.data[k])
+//                 && fq_gpu::is_zero(bucketsThrust[i].z.data[k])
+//             ){
+//                 //doubling; TODO same reduction issue as described above
+//                 g1_gpu::doubling(
+//                     pointsThrust[/*pointIndicesList*/[bucket_offset + i]].x.data[k],
+//                     pointsThrust[/*pointIndicesList*/[bucket_offset + i]].y.data[k],
+//                     pointsThrust[/*pointIndicesList*/[bucket_offset + i]].z.data[k],
+//                     bucketsThrust[i].x.data[k],
+//                     bucketsThrust[i].y.data[k],
+//                     bucketsThrust[i].z.data[k]
+//                 );
+//             }
+//             }
+//         }
+//     }
+// }
 
 
 /** 

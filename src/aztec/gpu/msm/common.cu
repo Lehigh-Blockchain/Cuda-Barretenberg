@@ -52,12 +52,25 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
         bucketOffsetThrust[count] = params->bucket_offsets[count];
         count++;
     }
+    count = 0;
+    while(count < num_buckets){
+        singleBucketIndicesThrust[count] = params->single_bucket_indices[count];
+        count++;
+    }
+    count = 0;
+    while(count < npoints){
+        pointsThrust[count] = points[count];
+        count++;
+    }
+    count = 0;
+    while(count < num_buckets){
+        bucketSizesThrust[count] = params->bucket_sizes[count];
+        count++;
+    }
 
-    // TODO finish vector intialization, change launch params, clean kernel
-    
     //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
-        (&bucketsThrust, /*params->bucket_offsets*/&bucketOffsetThrust, /*params->bucket_sizes*/&bucketSizesThrust, /*params->single_bucket_indices*/&singleBucketIndicesThrust, 
+        (&bucketsThrust, &bucketOffsetThrust, &bucketSizesThrust, &singleBucketIndicesThrust, 
         params->point_indices, &pointsThrust, config.num_buckets, npoints);
 
     // Running sum kernel

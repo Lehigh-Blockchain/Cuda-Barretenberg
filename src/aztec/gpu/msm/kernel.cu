@@ -321,28 +321,7 @@ unsigned *point_indices, thrust::device_vector<g1_gpu::element> *points, unsigne
         return;
     }
 
-    //count = 0;
-    ////if(bucket_sizes[count] != NULL){//populate bucket sizes thrust vector
-    //    while(count < num_buckets){
-    //        bucketSizesThrust[count] = bucket_sizes[count];
-    //        count++;
-    //    }
-    ////}
-    //count = 0;
-    ////if(single_bucket_indices[count] != NULL){//populate single bucket index thrust vector
-    //    while(count < num_buckets){
-    //        singleBucketIndicesThrust[count] = single_bucket_indices[count];
-    //        count++;
-    //    }
-    ////}
-    //count = 0;
-    ////if(points[count] != NULL){//populate points thrust vector
-    //    while(count < num_points){
-    //        pointsThrust[count] = points[count];
-    //        count++;
-    //    }
-    ////}
-//
+    
     ////calculations
     //
     ////loop through bucket indices

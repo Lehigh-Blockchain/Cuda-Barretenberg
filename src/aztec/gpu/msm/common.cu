@@ -16,12 +16,18 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     config.params = new cub_routines();
 
     // Bucket initialization kernel
-    point_t *buckets;
+    thrust::host_vector<point_t> buckets;
     unsigned NUM_THREADS = 1 << 10; 
 
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
+    //Fill buckets on host
     CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
-    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); 
+
+    // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
+    thrust::device_vector<point_t> deviceBuckets = buckets;
+    ///NB: Calling deviceBuckets.data() here is the same as saying thrust::device_ptr ptr = &deviceBuckets[0]; as in
+    ///we retain information entered into deviceBuckets through passing the pointer
+    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(deviceBuckets.data()); 
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));

@@ -14,11 +14,13 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     config.params = new cub_routines();
 
     // Bucket initialization kernel
+    //convert this buckets pointer array to a thrust vec
     point_t *buckets;
     unsigned NUM_THREADS = 1 << 10; 
 
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
     CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
+    //pass in thurst vec iterator.begin() to this kernel call
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); 
 
     // Scalars decomposition kernel
@@ -33,7 +35,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
     unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
-    accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
+    accumulate_buckets_kernel<<<NUM_BLOCKS_2, 1, 0, stream>>>
         (buckets, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);
 

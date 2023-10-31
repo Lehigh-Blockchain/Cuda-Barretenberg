@@ -264,27 +264,27 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
 
     for (unsigned i = 0; i < bucket_size; i++) { 
         g1_gpu::add(
-            buckets[bucket_index].x.data[tid % 4], 
-            buckets[bucket_index].y.data[tid % 4], 
-            buckets[bucket_index].z.data[tid % 4], 
-            points[point_indices[bucket_offset + i]].x.data[tid % 4], 
-            points[point_indices[bucket_offset + i]].y.data[tid % 4], 
-            points[point_indices[bucket_offset + i]].z.data[tid % 4], 
-            buckets[bucket_index].x.data[tid % 4], 
-            buckets[bucket_index].y.data[tid % 4], 
-            buckets[bucket_index].z.data[tid % 4]
+            buckets[bucket_index].x.data[tid], 
+            buckets[bucket_index].y.data[tid], 
+            buckets[bucket_index].z.data[tid], 
+            points[point_indices[bucket_offset + i]].x.data[tid], 
+            points[point_indices[bucket_offset + i]].y.data[tid], 
+            points[point_indices[bucket_offset + i]].z.data[tid], 
+            buckets[bucket_index].x.data[tid], 
+            buckets[bucket_index].y.data[tid], 
+            buckets[bucket_index].z.data[tid]
         );
 
-        if (fq_gpu::is_zero(buckets[bucket_index].x.data[tid % 4]) && 
-            fq_gpu::is_zero(buckets[bucket_index].y.data[tid % 4]) && 
-            fq_gpu::is_zero(buckets[bucket_index].z.data[tid % 4])) {
+        if (fq_gpu::is_zero(buckets[bucket_index].x.data[tid]) && 
+            fq_gpu::is_zero(buckets[bucket_index].y.data[tid]) && 
+            fq_gpu::is_zero(buckets[bucket_index].z.data[tid])) {
                 g1_gpu::doubling(
-                    points[point_indices[bucket_offset + i]].x.data[tid % 4], 
-                    points[point_indices[bucket_offset + i]].y.data[tid % 4], 
-                    points[point_indices[bucket_offset + i]].z.data[tid % 4], 
-                    buckets[bucket_index].x.data[tid % 4], 
-                    buckets[bucket_index].y.data[tid % 4], 
-                    buckets[bucket_index].z.data[tid % 4]
+                    points[point_indices[bucket_offset + i]].x.data[tid], 
+                    points[point_indices[bucket_offset + i]].y.data[tid], 
+                    points[point_indices[bucket_offset + i]].z.data[tid], 
+                    buckets[bucket_index].x.data[tid], 
+                    buckets[bucket_index].y.data[tid], 
+                    buckets[bucket_index].z.data[tid]
                 );
         }
     }

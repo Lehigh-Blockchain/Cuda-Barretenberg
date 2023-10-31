@@ -21,7 +21,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
     //Fill buckets on host
-    CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
+    CUDA_WRAPPER(cudaMallocAsync(buckets.data(), config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
 
     // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
     thrust::device_vector<point_t> deviceBuckets = buckets;
@@ -41,53 +41,17 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
     unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
-    //thrust vector declaration
-    thrust::device_vector<g1_gpu::element>bucketsThrust(config.num_buckets);
-    thrust::device_vector<unsigned>bucketOffsetThrust(config.num_buckets);
-    thrust::device_vector<unsigned>bucketSizesThrust(config.num_buckets);
-    thrust::device_vector<unsigned>singleBucketIndicesThrust(config.num_buckets);
-    thrust::device_vector<g1_gpu::element>pointsThrust(npoints);
-    //thrust vector initialization
-    int count = 0;
-    while(count < num_buckets){
-        bucketsThrust[count] = buckets[count];
-        count++;
-    }
-    count = 0;
-    while(count < num_buckets){
-        bucketOffsetThrust[count] = params->bucket_offsets[count];
-        count++;
-    }
-    count = 0;
-    while(count < num_buckets){
-        singleBucketIndicesThrust[count] = params->single_bucket_indices[count];
-        count++;
-    }
-    count = 0;
-    while(count < npoints){
-        pointsThrust[count] = points[count];
-        count++;
-    }
-    count = 0;
-    while(count < num_buckets){
-        bucketSizesThrust[count] = params->bucket_sizes[count];
-        count++;
-    }
 
     //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
-        (&bucketsThrust, &bucketOffsetThrust, &bucketSizesThrust, &singleBucketIndicesThrust, 
-        params->point_indices, &pointsThrust, config.num_buckets, npoints);
+        (&deviceBuckets, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
+        params->point_indices, points, config.num_buckets);
 
-    //repopulation of buckets after thrust
-    for(int i = 0; i < num_buckets; i++){
-        buckets[i] = bucketsThrust[i];
-    }
 
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
-    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(buckets, final_sum, c);
+    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(deviceBuckets.data(), final_sum, c);
 
     // Final accumulation kernel
     point_t *res;

@@ -42,37 +42,43 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     unsigned NUM_THREADS_2 = 1 << 8;
     unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
     //thrust vector declaration
-    thrust::device_vector<g1_gpu::element>bucketsThrust(config.num_buckets);
     thrust::device_vector<unsigned>bucketOffsetThrust(config.num_buckets);
+    size_t sizeBucketOffset = params->bucket_offsets.size();
     thrust::device_vector<unsigned>bucketSizesThrust(config.num_buckets);
+    size_t sizeBucketSizes = params->single_bucket_indices.size();
     thrust::device_vector<unsigned>singleBucketIndicesThrust(config.num_buckets);
     thrust::device_vector<g1_gpu::element>pointsThrust(npoints);
-    //thrust vector initialization
-    int count = 0;
-    while(count < num_buckets){
-        bucketsThrust[count] = buckets[count];
-        count++;
-    }
-    count = 0;
-    while(count < num_buckets){
-        bucketOffsetThrust[count] = params->bucket_offsets[count];
-        count++;
-    }
-    count = 0;
-    while(count < num_buckets){
-        singleBucketIndicesThrust[count] = params->single_bucket_indices[count];
-        count++;
-    }
-    count = 0;
-    while(count < npoints){
-        pointsThrust[count] = points[count];
-        count++;
-    }
-    count = 0;
-    while(count < num_buckets){
-        bucketSizesThrust[count] = params->bucket_sizes[count];
-        count++;
-    }
+
+    thrust::copy(bucketOffsetThrust, bucketOffsetThrust + sizeBucketOffset, bucketOffsetThrust.begin());
+
+
+
+    //thrust vector initialization DEPRECATED
+    //int count = 0;
+    // while(count < num_buckets){
+    //     bucketsThrust[count] = buckets[count];
+    //     count++;
+    // }
+    // count = 0;
+    // while(count < num_buckets){
+    //     bucketOffsetThrust[count] = params->bucket_offsets[count];
+    //     count++;
+    // }
+    // count = 0;
+    // while(count < num_buckets){
+    //     singleBucketIndicesThrust[count] = params->single_bucket_indices[count];
+    //     count++;
+    // }
+    // count = 0;
+    // while(count < npoints){
+    //     pointsThrust[count] = points[count];
+    //     count++;
+    // }
+    // count = 0;
+    // while(count < num_buckets){
+    //     bucketSizesThrust[count] = params->bucket_sizes[count];
+    //     count++;
+    // }
 
     //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>

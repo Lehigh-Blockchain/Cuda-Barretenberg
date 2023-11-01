@@ -266,7 +266,7 @@ struct binaryElementAdd : std::binary_function<g1_gpu::element, g1_gpu::element,
  * NB: Getting swapped out for efficient sum reduce kernel (thrust::reduce)
  */
 __global__ void accumulate_buckets_kernel 
-(g1_gpu::element *buckets, unsigned *bucket_offsets, unsigned *bucket_sizes, unsigned *single_bucket_indices, 
+(thrust::device_vector<point_t> *buckets, unsigned *bucket_offsets, unsigned *bucket_sizes, unsigned *single_bucket_indices, 
 unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 

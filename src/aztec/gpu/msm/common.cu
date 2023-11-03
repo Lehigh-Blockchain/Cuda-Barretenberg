@@ -16,18 +16,25 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     config.params = new cub_routines();
 
     // Bucket initialization kernel
-    thrust::host_vector<point_t> buckets;
+    thrust::host_vector<point_t> bucketsHost;
+    point_t* bucketsRaw = nullptr;
+    //thrust::device_ptr<point_t> dptr = thrust::raw_pointer_cast(buckets.data());
     unsigned NUM_THREADS = 1 << 10; 
 
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
     //Fill buckets on host
-    CUDA_WRAPPER(cudaMallocAsync(buckets.data(), config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
+    CUDA_WRAPPER(cudaMallocAsync((void**)bucketsRaw, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
+    cudaMemcpyAsync(bucketsRaw, bucketsHost.data(), bucketsHost.size()*sizeof(point_t), cudaMemcpyHostToDevice, cudaStreamDefault);
 
     // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
-    thrust::device_vector<point_t> deviceBuckets = buckets;
+    thrust::device_vector<point_t> deviceBuckets(bucketsHost.size());
+    cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), bucketsRaw, bucketsHost.size()*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
+    cudaStreamSynchronize(cudaStreamDefault);
+    cudaFree(bucketsRaw);
+    
     ///NB: Calling deviceBuckets.data() here is the same as saying thrust::device_ptr ptr = &deviceBuckets[0]; as in
     ///we retain information entered into deviceBuckets through passing the pointer
-    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(deviceBuckets.data()); 
+    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data())); 
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
@@ -42,44 +49,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     unsigned NUM_THREADS_2 = 1 << 8;
     unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
     //thrust vector declaration
-    thrust::device_vector<unsigned>bucketOffsetThrust(config.num_buckets);
-    size_t sizeBucketOffset = params->bucket_offsets.size();
-    thrust::device_vector<unsigned>bucketSizesThrust(config.num_buckets);
-    size_t sizeBucketSizes = params->single_bucket_indices.size();
-    thrust::device_vector<unsigned>singleBucketIndicesThrust(config.num_buckets);
-    thrust::device_vector<g1_gpu::element>pointsThrust(npoints);
-
-    thrust::copy(bucketOffsetThrust, bucketOffsetThrust + sizeBucketOffset, bucketOffsetThrust.begin());
-
-
-
-    //thrust vector initialization DEPRECATED
-    //int count = 0;
-    // while(count < num_buckets){
-    //     bucketsThrust[count] = buckets[count];
-    //     count++;
-    // }
-    // count = 0;
-    // while(count < num_buckets){
-    //     bucketOffsetThrust[count] = params->bucket_offsets[count];
-    //     count++;
-    // }
-    // count = 0;
-    // while(count < num_buckets){
-    //     singleBucketIndicesThrust[count] = params->single_bucket_indices[count];
-    //     count++;
-    // }
-    // count = 0;
-    // while(count < npoints){
-    //     pointsThrust[count] = points[count];
-    //     count++;
-    // }
-    // count = 0;
-    // while(count < num_buckets){
-    //     bucketSizesThrust[count] = params->bucket_sizes[count];
-    //     count++;
-    // }
-
+    
     //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
         (&deviceBuckets, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
@@ -89,7 +59,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
-    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(deviceBuckets.data(), final_sum, c);
+    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data()), final_sum, c);
 
     // Final accumulation kernel
     point_t *res;
@@ -106,7 +76,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Free host and device memory 
     CUDA_WRAPPER(cudaFreeHost(points));
     CUDA_WRAPPER(cudaFreeHost(scalars));
-    CUDA_WRAPPER(cudaFreeAsync(buckets, stream));
+    //CUDA_WRAPPER(cudaFreeAsync(params->buckets, stream));
     CUDA_WRAPPER(cudaFreeAsync(params->bucket_indices, stream));
     CUDA_WRAPPER(cudaFreeAsync(params->point_indices, stream));
     CUDA_WRAPPER(cudaFreeAsync(params->sort_indices_temp_storage, stream));

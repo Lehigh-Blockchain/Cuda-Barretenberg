@@ -95,6 +95,7 @@ __global__ void sum_reduction_kernel(g1_gpu::element *points, g1_gpu::element *r
                 partial_sum[subgroup].y.data[tid % 4], 
                 partial_sum[subgroup].z.data[tid % 4]
             );
+            // put point doubing struct
         }
         __syncthreads();
         t -= t / 2;

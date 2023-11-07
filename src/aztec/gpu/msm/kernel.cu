@@ -258,6 +258,19 @@ struct binaryElementAdd : std::binary_function<g1_gpu::element, g1_gpu::element,
             *result.y.data,
             *result.z.data
         );
+
+        if (fq_gpu::is_zero(*result.x.data) && 
+            fq_gpu::is_zero(*result.y.data) && 
+            fq_gpu::is_zero(*result.z.data)) {
+                g1_gpu::doubling(
+                    *element_b.x.data,
+                    *element_b.y.data,
+                    *element_b.z.data,
+                    *result.x.data,
+                    *result.y.data,
+                    *result.z.data
+                );
+        }
         return result;
     }
 }; 
@@ -293,6 +306,10 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
 
     //The following thrust::reduce call should generate CUDA code that executes our reduction problem as a
     //tree reduce. This should scale this kernel from O(n/4) to O(lgn).
+
+    for(int i = 0; i < num_buckets; i++){
+        thrust::reduce(buckets.begin(), buckets.end(), (point_t)element(null, null, null), binaryElementAdd());// NB: compiles without this line
+    }
 
     /// NB: Unsure how to do this next bit: what we want to do is use thrust::reduce to add up all the points in the
     /// individual buckets, and then return buckets with buckets[bucket_index] modified to be a single element returned

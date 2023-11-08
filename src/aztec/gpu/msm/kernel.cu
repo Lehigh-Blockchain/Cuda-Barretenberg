@@ -308,7 +308,7 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     //tree reduce. This should scale this kernel from O(n/4) to O(lgn).
 
     for(int i = 0; i < num_buckets; i++){
-        thrust::reduce(buckets.begin(), buckets.end(), (point_t)element(null, null, null), binaryElementAdd());// NB: compiles without this line
+        thrust::reduce((*buckets).begin(), (*buckets).end(), fq_gpu::zero(), binaryElementAdd());// NB: compiles without this line
     }
 
     /// NB: Unsure how to do this next bit: what we want to do is use thrust::reduce to add up all the points in the

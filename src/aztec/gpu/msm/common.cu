@@ -28,13 +28,14 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
     thrust::device_vector<point_t> deviceBuckets(bucketsHost.size());
-    cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), bucketsRaw, bucketsHost.size()*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
+    thrust::raw_pointer_cast(deviceBuckets.data());
+    cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets->data()), bucketsRaw, bucketsHost.size()*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
     cudaStreamSynchronize(cudaStreamDefault);
     cudaFree(bucketsRaw);
     
     ///NB: Calling deviceBuckets.data() here is the same as saying thrust::device_ptr ptr = &deviceBuckets[0]; as in
     ///we retain information entered into deviceBuckets through passing the pointer
-    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data())); 
+    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets->data())); 
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
@@ -52,14 +53,14 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     
     //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
-        (&deviceBuckets, params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
+        (thrust::raw_pointer_cast(deviceBuckets->data()), params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);
 
 
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
-    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data()), final_sum, c);
+    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets->data()), final_sum, c);
 
     // Final accumulation kernel
     point_t *res;

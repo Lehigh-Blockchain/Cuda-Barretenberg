@@ -98,6 +98,7 @@ Context<point_t, scalar_t> *context, g1::affine_element *points, fr *scalars, in
     // Launch pippenger kernel
     cout << "starting pippenger!" << endl;
     g1_gpu::element **result = new g1_gpu::element*[num_streams];
+     cout << "instantiated result element!" << endl;
     for (int i = 0; i < num_streams; i++) { 
         result[i] = context->pipp.execute_bucket_method(
             context->pipp, context->pipp.device_scalar_ptrs.d_ptrs[i], context->pipp.device_base_ptrs.d_ptrs[i], 

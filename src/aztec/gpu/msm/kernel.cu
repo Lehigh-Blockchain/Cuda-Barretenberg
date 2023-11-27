@@ -284,7 +284,7 @@ struct binaryElementAdd : std::binary_function<point_t, point_t, point_t> {
  * NB: Getting swapped out for efficient sum reduce kernel (thrust::reduce)
  */
 __global__ void accumulate_buckets_kernel 
-(point_t **buckets, unsigned *bucket_offsets, unsigned *bucket_sizes, unsigned *single_bucket_indices, 
+(point_t *buckets, unsigned *bucket_offsets, unsigned *bucket_sizes, unsigned *single_bucket_indices, 
 unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -314,7 +314,7 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     point_t zero_element;
 
     for(int i = 0; i < num_buckets; i++) {
-        thrust::reduce(thrust::device, buckets[i], buckets[i]+sizeof(buckets[i]), zero_element, binaryElementAdd());
+        thrust::reduce(thrust::device, buckets, buckets + sizeof(buckets), zero_element, binaryElementAdd());
     }
 
     /// NB: Unsure how to do this next bit: what we want to do is use thrust::reduce to add up all the points in the

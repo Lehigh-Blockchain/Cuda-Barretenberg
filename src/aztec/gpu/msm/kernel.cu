@@ -3,6 +3,8 @@
 #include <cuda.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <thrust/reduce.h>
+#include <thrust/execution_policy.h>
 
 using namespace cooperative_groups;
 
@@ -242,9 +244,11 @@ __global__ void split_scalars_kernel
  * operation. Note: thrust::reduce takes in as its 'operator' parameter a model of the BinaryOperation class, which
  * can be instantiated as a struct as follows:
  */
-struct binaryElementAdd : std::binary_function<g1_gpu::element, g1_gpu::element, g1_gpu::element> {
-    g1_gpu::element __device__ operator()(g1_gpu::element element_a, g1_gpu::element element_b) const { 
-        g1_gpu::element result(element_a);
+struct binaryElementAdd : std::binary_function<point_t, point_t, point_t> {
+    g1_gpu::element __device__ operator()(point_t element_a_point, point_t element_b_point) const { 
+        g1_gpu::element result(element_a_point);
+        g1_gpu::element element_a(element_a_point);
+        g1_gpu::element element_b(element_b_point);
 
         g1_gpu::add(
             //no need to concern with tid things that are handled in the accumulate_buckets kernel, thrust will provide
@@ -271,7 +275,7 @@ struct binaryElementAdd : std::binary_function<g1_gpu::element, g1_gpu::element,
                     *result.z.data
                 );
         }
-        return result;
+        return (point_t) result;
     }
 }; 
 
@@ -307,8 +311,10 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     //The following thrust::reduce call should generate CUDA code that executes our reduction problem as a
     //tree reduce. This should scale this kernel from O(n/4) to O(lgn).
 
-    for(int i = 0; i < num_buckets; i++){
-        thrust::reduce((*buckets).begin(), (*buckets).end(), fq_gpu::zero(), binaryElementAdd());// NB: compiles without this line
+    point_t zero_element;
+
+    for(int i = 0; i < num_buckets; i++) {
+        thrust::reduce(thrust::device, buckets[i].begin(), buckets[i].end(), zero_element, binaryElementAdd());
     }
 
     /// NB: Unsure how to do this next bit: what we want to do is use thrust::reduce to add up all the points in the

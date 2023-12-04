@@ -51,8 +51,12 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     split_scalars_kernel<<<NUM_POINTS / NUM_THREADS, NUM_THREADS, 0, stream>>>
         (params->bucket_indices + npoints, params->point_indices + npoints, scalars, npoints, windows, c);
 
+    cout << "Split Scalars kernel launched" << endl;
+
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
+
+    cout << "Cub routines executed after Split Scalars Kernel" << endl;
 
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
@@ -64,23 +68,32 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
         (thrust::raw_pointer_cast(deviceBuckets.data()), params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);
 
+    cout << "Accumulate Buckets Kernel launched" << endl;
 
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
     bucket_running_sum_kernel<<<26, 4, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data()), final_sum, c);
 
+    cout << "Bucket Running Sum kernel lauched" << endl;
+
     // Final accumulation kernel
     point_t *res;
     CUDA_WRAPPER(cudaMallocManaged(&res, 3 * 4 * sizeof(uint64_t)));
     final_accumulation_kernel<<<1, 4, 0, stream>>>(final_sum, res, windows, c);
+
+    cout << "Final Accumulation kernel launched" << endl;
     
     // Synchronize stream
     cudaStreamSynchronize(stream);
 
+    cout << "Synchronizing Cuda Stream" << endl;
+
     // Check for errors codes
     auto res1 = cudaGetLastError();
     cout << "Cuda Error Code: " << res1 << endl;
+
+    cout << "Checking for errors" << endl;
 
     // Free host and device memory 
     CUDA_WRAPPER(cudaFreeHost(points));
@@ -97,6 +110,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     CUDA_WRAPPER(cudaFreeAsync(params->offsets_temp_storage, stream));
     CUDA_WRAPPER(cudaFree(final_sum));
     CUDA_WRAPPER(cudaFree(res));
+
+    cout << "Freeing memory\nReturning MSM result" << endl;
 
     return res;
 }

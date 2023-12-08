@@ -69,6 +69,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
         params->point_indices, points, config.num_buckets);
 
     cout << "Accumulate Buckets Kernel launched" << endl;
+    auto res2 = cudaGetLastError();
+    cout << "Cuda Error After Accumulate Buckets: " << res2 << endl;
 
     // Running sum kernel
     point_t *final_sum;
@@ -76,6 +78,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     bucket_running_sum_kernel<<<26, 4, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data()), final_sum, c);
 
     cout << "Bucket Running Sum kernel lauched" << endl;
+    auto res3 = cudaGetLastError();
+    cout << "Cuda Error After Bucket Running Sum: " << res3 << endl;
 
     // Final accumulation kernel
     point_t *res;

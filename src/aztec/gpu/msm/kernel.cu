@@ -708,7 +708,7 @@ __global__ void bucket_running_sum_kernel_3(g1_gpu::element *result, g1_gpu::ele
  * Final bucket accumulation to produce single group element
  */
 __global__ void final_accumulation_kernel(g1_gpu::element *final_sum, g1_gpu::element *final_result, size_t num_bucket_modules, unsigned c) {
-int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     g1_gpu::element R;
     g1_gpu::element Q;
@@ -717,20 +717,20 @@ int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (tid < LIMBS) {
         // Initialize result as 0
-        fq_gpu::load(0, final_result[0].x.data[tid % 4]); 
-        fq_gpu::load(0, final_result[0].y.data[tid % 4]); 
-        fq_gpu::load(0, final_result[0].z.data[tid % 4]); 
+        fq_gpu::load(0, final_result[0].x.data[tid]); 
+        fq_gpu::load(0, final_result[0].y.data[tid]); 
+        fq_gpu::load(0, final_result[0].z.data[tid]); 
         // Loop for each bucket module
         for (unsigned z = 26; z > 0; z--) {
             // Initialize 'R' to the identity element, Q to the curve point
-            fq_gpu::load(0, R.x.data[tid % 4]); 
-            fq_gpu::load(0, R.y.data[tid % 4]); 
-            fq_gpu::load(0, R.z.data[tid % 4]); 
+            fq_gpu::load(0, R.x.data[tid]); 
+            fq_gpu::load(0, R.y.data[tid]); 
+            fq_gpu::load(0, R.z.data[tid]); 
 
             // Load partial sums
-            fq_gpu::load(final_result[0].x.data[tid % 4], Q.x.data[tid % 4]);
-            fq_gpu::load(final_result[0].y.data[tid % 4], Q.y.data[tid % 4]);
-            fq_gpu::load(final_result[0].z.data[tid % 4], Q.z.data[tid % 4]);
+            fq_gpu::load(final_result[0].x.data[tid], Q.x.data[tid]);
+            fq_gpu::load(final_result[0].y.data[tid], Q.y.data[tid]);
+            fq_gpu::load(final_result[0].z.data[tid], Q.z.data[tid]);
 
             // Sync loads
             __syncthreads();
@@ -743,39 +743,39 @@ int tid = blockIdx.x * blockDim.x + threadIdx.x;
                     // extracting the i-th bit of scalar in limb.
                     if (((exponent.data[j] >> i) & 1) ? 1 : 0)
                         g1_gpu::add(
-                            Q.x.data[tid % 4], Q.y.data[tid % 4], Q.z.data[tid % 4], 
-                            R.x.data[tid % 4], R.y.data[tid % 4], R.z.data[tid % 4], 
-                            R.x.data[tid % 4], R.y.data[tid % 4], R.z.data[tid % 4]
+                            Q.x.data[tid], Q.y.data[tid], Q.z.data[tid], 
+                            R.x.data[tid], R.y.data[tid], R.z.data[tid], 
+                            R.x.data[tid], R.y.data[tid], R.z.data[tid]
                         );
                     if (i != 0) 
                         g1_gpu::doubling(
-                            R.x.data[tid % 4], R.y.data[tid % 4], R.z.data[tid % 4], 
-                            R.x.data[tid % 4], R.y.data[tid % 4], R.z.data[tid % 4]
+                            R.x.data[tid], R.y.data[tid], R.z.data[tid], 
+                            R.x.data[tid], R.y.data[tid], R.z.data[tid]
                         );
                 }
             }
             g1_gpu::add(
-                R.x.data[tid % 4], 
-                R.y.data[tid % 4], 
-                R.z.data[tid % 4],
-                final_sum[z - 1].x.data[tid % 4],
-                final_sum[z - 1].y.data[tid % 4],
-                final_sum[z - 1].z.data[tid % 4],
-                final_result[0].x.data[tid % 4], 
-                final_result[0].y.data[tid % 4], 
-                final_result[0].z.data[tid % 4]
+                R.x.data[tid], 
+                R.y.data[tid], 
+                R.z.data[tid],
+                final_sum[z - 1].x.data[tid],
+                final_sum[z - 1].y.data[tid],
+                final_sum[z - 1].z.data[tid],
+                final_result[0].x.data[tid], 
+                final_result[0].y.data[tid], 
+                final_result[0].z.data[tid]
             );
 
-            if (fq_gpu::is_zero(final_result[0].x.data[tid % 4]) 
-                && fq_gpu::is_zero(final_result[0].y.data[tid % 4]) 
-                && fq_gpu::is_zero(final_result[0].z.data[tid % 4])) {
+            if (fq_gpu::is_zero(final_result[0].x.data[tid]) 
+                && fq_gpu::is_zero(final_result[0].y.data[tid]) 
+                && fq_gpu::is_zero(final_result[0].z.data[tid])) {
                 g1_gpu::doubling(
-                    R.x.data[tid % 4],
-                    R.y.data[tid % 4],
-                    R.z.data[tid % 4], 
-                    final_result[0].x.data[tid % 4],
-                    final_result[0].y.data[tid % 4],
-                    final_result[0].z.data[tid % 4]
+                    R.x.data[tid],
+                    R.y.data[tid],
+                    R.z.data[tid], 
+                    final_result[0].x.data[tid],
+                    final_result[0].y.data[tid],
+                    final_result[0].z.data[tid]
                 );
             }
         }

@@ -84,7 +84,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Final accumulation kernel
     point_t *res;
     CUDA_WRAPPER(cudaMallocManaged(&res, 3 * 4 * sizeof(uint64_t)));
-    final_accumulation_kernel<<<1, 4, 0, stream>>>(final_sum, res, windows, c);
+    final_accumulation_kernel<<<1, 1, 0, stream>>>(final_sum, res, windows, c);
 
     cout << "Final Accumulation kernel launched" << endl;
     

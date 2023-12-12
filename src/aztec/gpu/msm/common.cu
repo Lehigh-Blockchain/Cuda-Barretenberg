@@ -26,16 +26,20 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
     //Fill buckets on host
     CUDA_WRAPPER(cudaMallocAsync(&bucketsRaw, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
-    cudaMemcpyAsync(bucketsRaw, bucketsHost.data(), bucketsHost.size()*sizeof(point_t), cudaMemcpyHostToDevice, cudaStreamDefault);
+    cudaMemcpyAsync(bucketsHost.data(), bucketsRaw, sizeof(bucketsRaw)*sizeof(point_t), cudaMemcpyHostToHost, cudaStreamDefault);
+
+    cout << "Size of raw buckets pointer: " << sizeof(bucketsRaw) << endl;
 
     cout << "Copied points from stream to host vector." << endl;
 
     // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
-    thrust::device_vector<point_t> deviceBuckets(bucketsHost.size());
-    thrust::raw_pointer_cast(deviceBuckets.data());
-    cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), bucketsRaw, bucketsHost.size()*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
+    thrust::device_vector<point_t> deviceBuckets(sizeof(bucketsRaw) * sizeof(point_t));
+    // thrust::raw_pointer_cast(deviceBuckets.data());
+    cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), bucketsRaw, sizeof(bucketsRaw)*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
     cudaStreamSynchronize(cudaStreamDefault);
     cudaFree(bucketsRaw);
+
+    cout << "Size of device buckets after raw pointer copying: " << deviceBuckets.size() << endl;
 
     cout << "Copied points from host vector to device vector." << endl;
     
@@ -44,6 +48,9 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data())); 
 
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
+
+    cout << "Size of device buckets after init bucket kernel: " << deviceBuckets.size() << endl;
+
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
@@ -72,10 +79,16 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     auto res2 = cudaGetLastError();
     cout << "Cuda Error After Accumulate Buckets: " << res2 << endl;
 
+    cout << "Size of device buckets: " << deviceBuckets.size() << endl;
+
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
     bucket_running_sum_kernel<<<26, 4, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data()), final_sum, c);
+
+    // for (int i = 0; i < 32; i++) {
+    //     cout << &final_sum[i] << endl;
+    // }
 
     cout << "Bucket Running Sum kernel lauched" << endl;
     auto res3 = cudaGetLastError();

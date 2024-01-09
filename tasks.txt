@@ -1,0 +1,7 @@
+1. Create method to display elements in buckets in human readable format
+    OR create method to pipe elements in buckets to .txt so we can diff with master
+2. Compare elements in buckets at each step
+3. Find diff, fix it. 
+4. Profit
+
+USE DESCRIPTIVE COMMIT MESSAGES (not yeah boy)

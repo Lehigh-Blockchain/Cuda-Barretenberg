@@ -192,6 +192,9 @@ __global__ void initialize_buckets_kernel(g1_gpu::element *bucket) {
     int subgroup = grp.meta_group_rank();
     int subgroup_size = grp.meta_group_size();
 
+    //g1_gpu::element elementForInit()
+    //mike has notes on this issue and possible solution
+
     fq_gpu::load(fq_gpu::zero().data[tid], bucket[subgroup + (subgroup_size * blockIdx.x)].x.data[tid]);
     fq_gpu::load(fq_gpu::zero().data[tid], bucket[subgroup + (subgroup_size * blockIdx.x)].y.data[tid]);
     fq_gpu::load(fq_gpu::zero().data[tid], bucket[subgroup + (subgroup_size * blockIdx.x)].z.data[tid]);

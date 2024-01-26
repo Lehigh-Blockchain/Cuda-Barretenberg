@@ -18,8 +18,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cout << "Entered bucket method execution." << endl;
 
     // Bucket initialization kernel
-    thrust::host_vector<point_t> bucketsHost;
-    point_t* bucketsRaw;
+    thrust::host_vector<g1_gpu::element> bucketsHost;
+    g1_gpu::element* bucketsRaw;
     //thrust::device_ptr<point_t> dptr = thrust::raw_pointer_cast(buckets.data());
     unsigned NUM_THREADS = 1 << 10; 
 
@@ -33,7 +33,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cout << "Copied points from stream to host vector." << endl;
 
     // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
-    thrust::device_vector<point_t> deviceBuckets(sizeof(bucketsRaw) * sizeof(point_t));
+    thrust::device_vector<g1_gpu::element> deviceBuckets(sizeof(bucketsRaw) * sizeof(g1_gpu::element));
     // thrust::raw_pointer_cast(deviceBuckets.data());
     cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), bucketsRaw, sizeof(bucketsRaw)*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
     cudaStreamSynchronize(cudaStreamDefault);
@@ -49,10 +49,10 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data())); 
 
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
-    g1_gpu::element element_b(deviceBuckets[0]);//for debugging
-    std::cout << "First Bucket Contents after init buckets kernel: " << element_b.x.data[0] << std::endl; //for debugging
+    //g1_gpu::element element_b(deviceBuckets[0]);//for debugging
+    //std::cout << "First Bucket Contents after init buckets kernel: " << ((g1_gpu::element)deviceBuckets[0]).x.data[0] << std::endl; //for debugging
 
-    cout << "Size of device buckets after init bucket kernel: " << deviceBuckets.size() << endl;
+    //cout << "First bucket contents: " << deviceBuckets[0][0].x.data[0] << endl;//still trying to debug
 
 
     // Scalars decomposition kernel

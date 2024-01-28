@@ -1,3 +1,5 @@
+
+
 #include "kernel.cu"
 #include <iostream>
 #include <vector>
@@ -63,8 +65,11 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Split Scalars kernel launched" << endl;
 
+    cout << "Size of device buckets after launching split scalars kernel: " << deviceBuckets.size() << endl;
+
     //for debugging
     g1_gpu::element element_a(deviceBuckets[0]);//convert point in first bucket on device to an element
+   
     std::cout << "First Bucket Contents after slit scalars kernel: " << element_a.x.data[0] << std::endl; //print element that was point in first bucket on device to see if we are not initializing buckets => illegal memory access was encountered
 
     // Execute CUB routines for determining bucket sizes, offsets, etc. 

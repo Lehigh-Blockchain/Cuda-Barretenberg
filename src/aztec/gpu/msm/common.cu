@@ -21,8 +21,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     // Bucket initialization kernel
     point_t *buckets;
-    thrust::host_vector<g1_gpu::element> bucketsHost;
-    //g1_gpu::element* bucketsRaw;
+    
     
 
     unsigned NUM_THREADS = 1 << 10; 
@@ -32,14 +31,13 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
     
 
-    //cout << "Size of device buckets after raw pointer copying: " << deviceBuckets.size() << endl;
-    //cout << "Size of initialized device buckets should be: " << (sizeof(bucketsRaw)*sizeof(point_t)) << endl;//for debugging
+
 
     cout << "Copied points from host vector to device vector." << endl;
     
     ///NB: Calling deviceBuckets.data() here is the same as saying thrust::device_ptr ptr = &deviceBuckets[0]; as in
     ///we retain information entered into deviceBuckets through passing the pointer
-    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(/*thrust::raw_pointer_cast(deviceBuckets.data())*/buckets); 
+    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); ///*thrust::raw_pointer_cast(deviceBuckets.data())*/ was used previously
 
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
     
@@ -52,13 +50,20 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Split Scalars kernel launched" << endl;
 
-    //cout << "Size of device buckets after launching split scalars kernel: " << deviceBuckets.size() << endl;
 
     cout << "Lauching cub routines" << endl;
+
+    //auto res2 = cudaGetLastError();
+    //cout << "Cuda Error After Cub Routines: " << res2 << endl;
    
+    
+
+    
 
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
+
+   
 
     cout << "Cub routines executed after Split Scalars Kernel" << endl;
 
@@ -68,7 +73,11 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     //thrust vector declaration
     
 
+    cout << "Entering Thrust implementation" << endl;
+
+
     //THRUST STUFF NOW
+    thrust::host_vector<g1_gpu::element> bucketsHost;
     //thrust::device_ptr<point_t> dptr = thrust::raw_pointer_cast(&buckets);
     cudaMemcpyAsync(bucketsHost.data(), buckets, sizeof(buckets)*sizeof(point_t), cudaMemcpyHostToHost, cudaStreamDefault);
 
@@ -85,14 +94,15 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
 
 
+
+
     //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
         (thrust::raw_pointer_cast(deviceBuckets.data()), params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);
 
     cout << "Accumulate Buckets Kernel launched" << endl;
-    //auto res2 = cudaGetLastError();
-    //cout << "Cuda Error After Accumulate Buckets: " << res2 << endl;
+    
 
     cout << "Size of device buckets: " << deviceBuckets.size() << endl;
 

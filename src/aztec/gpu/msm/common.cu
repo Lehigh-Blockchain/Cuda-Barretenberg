@@ -20,42 +20,27 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cout << "Entered bucket method execution." << endl;
 
     // Bucket initialization kernel
-    thrust::host_vector<g1_gpu::element> bucketsHost;
-    g1_gpu::element* bucketsRaw;
-    //thrust::device_ptr<point_t> dptr = thrust::raw_pointer_cast(buckets.data());
+    point_t *buckets;
+    
+    
+
     unsigned NUM_THREADS = 1 << 10; 
 
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
     //Fill buckets on host
-    CUDA_WRAPPER(cudaMallocAsync(&bucketsRaw, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
-    cudaMemcpyAsync(bucketsHost.data(), bucketsRaw, sizeof(bucketsRaw)*sizeof(point_t), cudaMemcpyHostToHost, cudaStreamDefault);
+    CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
+    
 
-    cout << "Size of raw buckets pointer: " << sizeof(bucketsRaw) << endl;
 
-    cout << "Copied points from stream to host vector." << endl;
-
-    // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
-    thrust::device_vector<g1_gpu::element> deviceBuckets(sizeof(bucketsRaw) * sizeof(g1_gpu::element));
-    // thrust::raw_pointer_cast(deviceBuckets.data());
-    cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), bucketsRaw, sizeof(bucketsRaw)*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
-    cudaStreamSynchronize(cudaStreamDefault);
-    cudaFree(bucketsRaw);
-
-    cout << "Size of device buckets after raw pointer copying: " << deviceBuckets.size() << endl;
-    //cout << "Size of initialized device buckets should be: " << (sizeof(bucketsRaw)*sizeof(point_t)) << endl;//for debugging
 
     cout << "Copied points from host vector to device vector." << endl;
     
     ///NB: Calling deviceBuckets.data() here is the same as saying thrust::device_ptr ptr = &deviceBuckets[0]; as in
     ///we retain information entered into deviceBuckets through passing the pointer
-    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data())); 
+    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); ///*thrust::raw_pointer_cast(deviceBuckets.data())*/ was used previously
 
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
-    //g1_gpu::element element_b(deviceBuckets[0]);//for debugging
-    //std::cout << "First Bucket Contents after init buckets kernel: " << ((g1_gpu::element)deviceBuckets[0]).x.data[0] << std::endl; //for debugging
-
-    //cout << "First bucket contents: " << deviceBuckets[0][0].x.data[0] << endl;//still trying to debug
-
+    
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
@@ -65,15 +50,20 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Split Scalars kernel launched" << endl;
 
-    cout << "Size of device buckets after launching split scalars kernel: " << deviceBuckets.size() << endl;
 
-    //for debugging
-    g1_gpu::element element_a(deviceBuckets[0]);//convert point in first bucket on device to an element
+    cout << "Lauching cub routines" << endl;
+
+    //auto res2 = cudaGetLastError();
+    //cout << "Cuda Error After Cub Routines: " << res2 << endl;
    
-    std::cout << "First Bucket Contents after slit scalars kernel: " << element_a.x.data[0] << std::endl; //print element that was point in first bucket on device to see if we are not initializing buckets => illegal memory access was encountered
+    
+
+    
 
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
+
+   
 
     cout << "Cub routines executed after Split Scalars Kernel" << endl;
 
@@ -82,16 +72,41 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
     //thrust vector declaration
     
+
+    cout << "Entering Thrust implementation" << endl;
+
+
+    //THRUST STUFF NOW
+    thrust::host_vector<g1_gpu::element> bucketsHost;
+    //thrust::device_ptr<point_t> dptr = thrust::raw_pointer_cast(&buckets);
+    cudaMemcpyAsync(bucketsHost.data(), buckets, sizeof(buckets)*sizeof(point_t), cudaMemcpyHostToHost, cudaStreamDefault);
+
+    //cout << "Size of raw buckets pointer: " << sizeof(buckets) << endl;
+
+    cout << "Copied points from stream to host vector." << endl;
+
+    // Use Thrust copy constructor to create a device vector to send over to the initialize buckets kernel
+    thrust::device_vector<point_t> deviceBuckets(sizeof(buckets) * sizeof(g1_gpu::element));//this may have to be changed back from point_t to element
+    // thrust::raw_pointer_cast(deviceBuckets.data());
+    cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), buckets, sizeof(buckets)*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
+    cudaStreamSynchronize(cudaStreamDefault);
+    //cudaFree(bucketsRaw);
+
+
+
+
+
     //accumulate buckets call
     accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
         (thrust::raw_pointer_cast(deviceBuckets.data()), params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);
 
     cout << "Accumulate Buckets Kernel launched" << endl;
-    auto res2 = cudaGetLastError();
-    cout << "Cuda Error After Accumulate Buckets: " << res2 << endl;
+    
 
     cout << "Size of device buckets: " << deviceBuckets.size() << endl;
+
+    //CONVERT THRUST BACK TO RAW POINTERS
 
     // Running sum kernel
     point_t *final_sum;

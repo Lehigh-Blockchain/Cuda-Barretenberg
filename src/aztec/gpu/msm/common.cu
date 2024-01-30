@@ -40,6 +40,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); ///*thrust::raw_pointer_cast(deviceBuckets.data())*/ was used previously
 
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
+
+    cout << "Value of bucket one (testing print overrides): " << buckets[0] << endl;
     
 
     // Scalars decomposition kernel

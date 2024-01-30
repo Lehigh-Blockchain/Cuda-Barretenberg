@@ -128,6 +128,9 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     final_accumulation_kernel<<<1, 1, 0, stream>>>(final_sum, res, windows, c);
 
     cout << "Final Accumulation kernel launched" << endl;
+
+    auto res4 = cudaGetLastError();
+    cout << "Cuda Error After Final Accumulation: " << res4 << endl;
     
     // Synchronize stream
     cudaStreamSynchronize(stream);
@@ -136,9 +139,10 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     // Check for errors codes
     auto res1 = cudaGetLastError();
-    cout << "Cuda Error Code: " << res1 << endl;
+    cout << "Cuda Error Code After Sychronization of Stream: " << res1 << endl;
 
     cout << "Checking for errors" << endl;
+
 
     // Free host and device memory 
     CUDA_WRAPPER(cudaFreeHost(points));

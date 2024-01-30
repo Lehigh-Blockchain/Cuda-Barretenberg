@@ -104,7 +104,6 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cout << "Accumulate Buckets Kernel launched" << endl;
     
 
-    cout << "Size of device buckets: " << deviceBuckets.size() << endl;
 
     //CONVERT THRUST BACK TO RAW POINTERS
 
@@ -142,7 +141,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Free host and device memory 
     CUDA_WRAPPER(cudaFreeHost(points));
     CUDA_WRAPPER(cudaFreeHost(scalars));
-    //CUDA_WRAPPER(cudaFreeAsync(params->buckets, stream));
+    CUDA_WRAPPER(cudaFreeAsync(buckets, stream));
     CUDA_WRAPPER(cudaFreeAsync(params->bucket_indices, stream));
     CUDA_WRAPPER(cudaFreeAsync(params->point_indices, stream));
     CUDA_WRAPPER(cudaFreeAsync(params->sort_indices_temp_storage, stream));

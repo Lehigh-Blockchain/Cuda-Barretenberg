@@ -195,9 +195,9 @@ __global__ void initialize_buckets_kernel(g1_gpu::element *bucket) {
     //g1_gpu::element elementForInit()
     //mike has notes on this issue and possible solution
 
-    fq_gpu::load(fq_gpu::zero().data[tid], bucket[subgroup + (subgroup_size * blockIdx.x)].x.data[tid]);
-    fq_gpu::load(fq_gpu::zero().data[tid], bucket[subgroup + (subgroup_size * blockIdx.x)].y.data[tid]);
-    fq_gpu::load(fq_gpu::zero().data[tid], bucket[subgroup + (subgroup_size * blockIdx.x)].z.data[tid]);
+    fq_gpu::load(fq_gpu::zero().data[tid%4], bucket[subgroup + (subgroup_size * blockIdx.x)].x.data[tid%4]);
+    fq_gpu::load(fq_gpu::zero().data[tid%4], bucket[subgroup + (subgroup_size * blockIdx.x)].y.data[tid%4]);
+    fq_gpu::load(fq_gpu::zero().data[tid%4], bucket[subgroup + (subgroup_size * blockIdx.x)].z.data[tid%4]);
 }
 
 /**

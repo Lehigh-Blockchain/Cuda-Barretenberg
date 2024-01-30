@@ -301,7 +301,7 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     unsigned bucket_size = bucket_sizes[(subgroup + (subgroup_size * blockIdx.x))];
     unsigned bucket_offset = bucket_offsets[(subgroup + (subgroup_size * blockIdx.x))];
 
-    printf("bucket size is: %d", bucket_size);
+    //printf("bucket size is: %d", bucket_size);
 
     // Sync loads
     grp.sync();

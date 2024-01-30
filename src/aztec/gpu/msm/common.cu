@@ -41,7 +41,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
 
-    cout << "Value of bucket one (testing print overrides): " << buckets[0] << endl;
+    //cout << "Value of bucket one (testing print overrides): " << buckets[0] << endl; // this is breaking right now so its commented out
     
 
     // Scalars decomposition kernel

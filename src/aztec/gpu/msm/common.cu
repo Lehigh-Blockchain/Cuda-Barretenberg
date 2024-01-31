@@ -41,7 +41,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
 
-    //cout << "Value of bucket one (testing print overrides): " << buckets[0] << endl; // this is breaking right now so its commented out
+    //cout << "Value of bucket one (testing print overrides): " << buckets[3] << endl; // this is breaking right now so its commented out
     
 
     // Scalars decomposition kernel
@@ -108,15 +108,16 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
 
     //CONVERT THRUST BACK TO RAW POINTERS
+    buckets = thrust::raw_pointer_cast(&deviceBuckets[0]);//conversion back to raw pointer for buckets
+    ///NB: no need to free memory occupied by deviceBuckets as it will be done automatically when common is no longer in scope
+
 
     // Running sum kernel
     point_t *final_sum;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
-    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(thrust::raw_pointer_cast(deviceBuckets.data()), final_sum, c);
+    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(buckets, final_sum, c);
 
-    // for (int i = 0; i < 32; i++) {
-    //     cout << &final_sum[i] << endl;
-    // }
+    
 
     cout << "Bucket Running Sum kernel lauched" << endl;
     auto res3 = cudaGetLastError();

@@ -8,6 +8,48 @@
 
 namespace pippenger_common {
 
+
+ /**
+ * Struct to wrap x, y, z coordinates for both points and the result parameters for gpu::add to allow for a binary
+ * operation. Note: thrust::reduce takes in as its 'operator' parameter a model of the BinaryOperation class, which
+ * can be instantiated as a struct as follows:
+ */
+struct binaryElementAdd : std::binary_function<point_t, point_t, point_t> {
+    g1_gpu::element __device__ operator()(point_t element_a_point, point_t element_b_point) const { 
+        g1_gpu::element result(element_a_point);
+        g1_gpu::element element_a(element_a_point);
+        g1_gpu::element element_b(element_b_point);
+
+        g1_gpu::add(
+            //no need to concern with tid things that are handled in the accumulate_buckets kernel, thrust will provide
+            *element_a.x.data,
+            *element_a.y.data,
+            *element_a.z.data,
+            *element_b.x.data,
+            *element_b.y.data,
+            *element_b.z.data,
+            *result.x.data,
+            *result.y.data,
+            *result.z.data
+        );
+
+        if (fq_gpu::is_zero(*result.x.data) && 
+            fq_gpu::is_zero(*result.y.data) && 
+            fq_gpu::is_zero(*result.z.data)) {
+                g1_gpu::doubling(
+                    *element_b.x.data,
+                    *element_b.y.data,
+                    *element_b.z.data,
+                    *result.x.data,
+                    *result.y.data,
+                    *result.z.data
+                );
+        }
+        return (point_t) result;
+    }
+};
+
+
 /**
  * Execute bucket method
  */ 
@@ -97,14 +139,30 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
 
 
-
+    //REPLACE KERNEL CALL WITH ACTUAL THRUST CODE
     //accumulate buckets call
-    accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
+    /*accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
         (thrust::raw_pointer_cast(deviceBuckets.data()), params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);
 
-    cout << "Accumulate Buckets Kernel launched" << endl;
+    cout << "Accumulate Buckets Kernel launched" << endl;*/
     
+    
+    
+
+    //The following thrust::reduce call should generate CUDA code that executes our reduction problem as a
+    //tree reduce. This should scale this kernel from O(n/4) to O(lgn).
+
+    point_t zero_element;
+
+    for(int i = 0; i < num_buckets; i++) {
+        thrust::reduce(thrust::device, deviceBuckets.begin(), deviceBuckets.end()/*end address*/, zero_element, binaryElementAdd());
+        printf("%s","reducing bucket\n");
+    }
+
+    
+    
+    cout << "Using Thrust in Common.cu to accumulate buckets" << endl;
 
 
     //CONVERT THRUST BACK TO RAW POINTERS

@@ -8,6 +8,8 @@
 
 namespace pippenger_common {
 
+point_t host_buckets[26624 * sizeof(point_t)];
+
 /**
  * Execute bucket method
  */ 
@@ -39,6 +41,43 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     ///we retain information entered into deviceBuckets through passing the pointer
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); ///*thrust::raw_pointer_cast(deviceBuckets.data())*/ was used previously
 
+    cout << "Buckets initialized, printing..." << endl;
+
+    cout << "Size of buckets: " << num_buckets << endl; 
+    cout << "Size of point_t: " << sizeof(point_t) << endl;
+
+    cout << "Size of host buckets: " << sizeof(host_buckets) << endl;
+
+    transfer_field_elements_to_host(config, host_buckets, buckets, stream);
+    config.b
+    cout << "Slob on my knob." << endl;
+
+    auto error = cudaGetLastError();
+    cout << "Cuda Error After Bucket Running Sum: " << error << endl;
+
+    for (int i = 0; i < sizeof(host_buckets); i++) {
+        cout << "Bucket " << i << " with data: ";
+            cout << "x: ";
+            for (int j = 0; j < 4; j++) {
+                if (host_buckets[i].x.data[j] != 0) {
+                    cout << host_buckets[i].x.data[j] << " " << endl;
+                }
+            }
+            cout << ", y: ";
+            for (int j = 0; j < 4; j++) {
+                if (host_buckets[i].y.data[j] != 0) {
+                    cout << host_buckets[i].y.data[j] << " " << endl;
+                }
+            }
+            cout << ", z: ";
+            for (int j = 0; j < 4; j++) {
+                if (host_buckets[i].z.data[j] != 0) {
+                    cout << host_buckets[i].z.data[j] << " " << endl;
+                }
+            }
+            cout << endl;
+    }
+    
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
 
     //cout << "Value of bucket one (testing print overrides): " << buckets[3] << endl; // this is breaking right now so its commented out
@@ -266,12 +305,30 @@ pippenger_t &config, point_t *device_bases_ptrs, const point_t *points, cudaStre
 }
 
 /**
+ * Transfer base points to CPU device
+ */
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::transfer_bases_to_host(
+pippenger_t &config, point_t *device_bases_ptrs, const point_t *point_buckets, cudaStream_t stream) {    
+    CUDA_WRAPPER(cudaMemcpyAsync(device_bases_ptrs, point_buckets, NUM_POINTS * LIMBS * sizeof(uint64_t), cudaMemcpyDeviceToHost, stream));
+}
+
+/**
  * Transfer scalars to GPU device
  */
 template <class point_t, class scalar_t>
 void pippenger_t<point_t, scalar_t>::transfer_scalars_to_device(
 pippenger_t &config, scalar_t *device_scalar_ptrs, fr *scalars, cudaStream_t stream) {
     CUDA_WRAPPER(cudaMemcpyAsync(device_scalar_ptrs, scalars, NUM_POINTS * LIMBS * sizeof(uint64_t), cudaMemcpyHostToDevice, stream));
+}
+
+/**
+ * Transfer field elements to host device for debugging purposes
+ */
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::transfer_field_elements_to_host(
+pippenger_t &config, point_t* host_buckets, point_t* buckets, cudaStream_t stream) {
+    CUDA_WRAPPER(cudaMemcpyAsync(host_buckets, buckets, num_buckets * sizeof(point_t), cudaMemcpyDeviceToHost, stream)); // multiply by 4 to account for the 4 elements being printed in field.cuh
 }
 
 /**

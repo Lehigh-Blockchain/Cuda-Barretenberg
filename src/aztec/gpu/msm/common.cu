@@ -9,6 +9,7 @@
 namespace pippenger_common {
 
 point_t host_buckets[26624 * sizeof(point_t)];
+unsigned bucket_offsets_host[26624];
 
 /**
  * Execute bucket method
@@ -49,39 +50,63 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cout << "Size of host buckets: " << sizeof(host_buckets) << endl;
 
     transfer_field_elements_to_host(config, host_buckets, buckets, stream);
-    config.b
+   
     cout << "Slob on my knob." << endl;
 
     auto error = cudaGetLastError();
     cout << "Cuda Error After Bucket Running Sum: " << error << endl;
 
-    for (int i = 0; i < sizeof(host_buckets); i++) {
-        cout << "Bucket " << i << " with data: ";
-            cout << "x: ";
-            for (int j = 0; j < 4; j++) {
-                if (host_buckets[i].x.data[j] != 0) {
-                    cout << host_buckets[i].x.data[j] << " " << endl;
-                }
-            }
-            cout << ", y: ";
-            for (int j = 0; j < 4; j++) {
-                if (host_buckets[i].y.data[j] != 0) {
-                    cout << host_buckets[i].y.data[j] << " " << endl;
-                }
-            }
-            cout << ", z: ";
-            for (int j = 0; j < 4; j++) {
-                if (host_buckets[i].z.data[j] != 0) {
-                    cout << host_buckets[i].z.data[j] << " " << endl;
-                }
-            }
-            cout << endl;
-    }
+    
+
+    // for (int i = 0; i < sizeof(config.bucket_offsets); i++) {
+    //     cout << "Bucket " << i << " with data: ";
+    //     for (int j = 0; j < bucket_offsets[i]; j++) {
+    //         cout << "Point " << j << " in bucket " << i << " with x: ";
+    //         for (int j = 0; j < 4; j++) {
+    //             if (host_buckets[i].x.data[j] != 0) {
+    //                 cout << host_buckets[i].x.data[j] << " " << endl;
+    //             }
+    //         }
+    //         cout << ", y: ";
+    //         for (int j = 0; j < 4; j++) {
+    //             if (host_buckets[i].y.data[j] != 0) {
+    //                 cout << host_buckets[i].y.data[j] << " " << endl;
+    //             }
+    //         }
+    //         cout << ", z: ";
+    //         for (int j = 0; j < 4; j++) {
+    //             if (host_buckets[i].z.data[j] != 0) {
+    //                 cout << host_buckets[i].z.data[j] << " " << endl;
+    //             }
+    //         }
+    //         cout << endl;
+    //     }
+    // }
+
+    // for (int i = 0; i < sizeof(host_buckets); i++) {
+    //     cout << "Bucket " << i << " with data: ";
+    //         cout << "x: ";
+    //         for (int j = 0; j < 4; j++) {
+    //             if (host_buckets[i].x.data[j] != 0) {
+    //                 cout << host_buckets[i].x.data[j] << " " << endl;
+    //             }
+    //         }
+    //         cout << ", y: ";
+    //         for (int j = 0; j < 4; j++) {
+    //             if (host_buckets[i].y.data[j] != 0) {
+    //                 cout << host_buckets[i].y.data[j] << " " << endl;
+    //             }
+    //         }
+    //         cout << ", z: ";
+    //         for (int j = 0; j < 4; j++) {
+    //             if (host_buckets[i].z.data[j] != 0) {
+    //                 cout << host_buckets[i].z.data[j] << " " << endl;
+    //             }
+    //         }
+    //         cout << endl;
+    // }
     
     cout << "Initialized buckets with the initialize_buckets_kernel" << endl;
-
-    //cout << "Value of bucket one (testing print overrides): " << buckets[3] << endl; // this is breaking right now so its commented out
-    
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
@@ -91,20 +116,21 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Split Scalars kernel launched" << endl;
 
-
     cout << "Lauching cub routines" << endl;
 
     //auto res2 = cudaGetLastError();
     //cout << "Cuda Error After Cub Routines: " << res2 << endl;
-   
     
-
-    
-
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
 
-   
+    cout << "slob on my cob" << endl;
+
+    transfer_offsets_to_host(config, bucket_offsets_host, params->bucket_offsets, stream);
+
+    for (int i = 0; i < sizeof(bucket_offsets_host); i++) {
+        cout << "Offset for bucket " << i << ": " << bucket_offsets_host[i] << endl;;
+    }
 
     cout << "Cub routines executed after Split Scalars Kernel" << endl;
 
@@ -132,8 +158,6 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cudaMemcpyAsync(thrust::raw_pointer_cast(deviceBuckets.data()), buckets, sizeof(buckets)*sizeof(point_t),cudaMemcpyDeviceToDevice, cudaStreamDefault);
     cudaStreamSynchronize(cudaStreamDefault);
     //cudaFree(bucketsRaw);
-
-
 
 
 
@@ -311,6 +335,15 @@ template <class point_t, class scalar_t>
 void pippenger_t<point_t, scalar_t>::transfer_bases_to_host(
 pippenger_t &config, point_t *device_bases_ptrs, const point_t *point_buckets, cudaStream_t stream) {    
     CUDA_WRAPPER(cudaMemcpyAsync(device_bases_ptrs, point_buckets, NUM_POINTS * LIMBS * sizeof(uint64_t), cudaMemcpyDeviceToHost, stream));
+}
+
+/**
+ * Transfer bucket offsets to CPU device
+ */
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::transfer_offsets_to_host(
+pippenger_t &config, unsigned *host_offsets, unsigned *device_offsets, cudaStream_t stream) {    
+    CUDA_WRAPPER(cudaMemcpyAsync(host_offsets, device_offsets, num_buckets * sizeof(unsigned), cudaMemcpyDeviceToHost, stream));
 }
 
 /**

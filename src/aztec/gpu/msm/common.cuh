@@ -75,6 +75,12 @@ class pippenger_t {
         void transfer_bases_to_device(pippenger_t &config, point_t *device_bases_ptrs, const point_t *points, cudaStream_t stream);
         
         void transfer_scalars_to_device(pippenger_t &config, scalar_t *device_scalar_ptrs, fr *scalars, cudaStream_t stream);
+
+        void transfer_bases_to_host(pippenger_t &config, point_t *device_bases_ptrs, const point_t *point_buckets, cudaStream_t stream);
+
+        void transfer_field_elements_to_host(pippenger_t &config, point_t* host_buckets, point_t* buckets, cudaStream_t stream);
+                
+        void transfer_offsets_to_host(pippenger_t &config, unsigned *host_offsets, unsigned *device_offsets, cudaStream_t stream);
                 
         void print_result(g1_gpu::element *result_1, g1_gpu::element **result_2);
         

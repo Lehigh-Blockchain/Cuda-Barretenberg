@@ -23,8 +23,10 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); 
 
     //test for printing on master
+    
     transfer_field_elements_to_host(config, host_buckets, buckets, stream);
     cout << "First Element After Initialization: " << host_buckets[0] << endl;
+    
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));

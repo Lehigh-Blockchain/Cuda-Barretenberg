@@ -8,6 +8,7 @@
 #include <ecc/curves/bn254/fr.hpp>
 #include <plonk/proof_system/types/program_settings.hpp>
 #include <plonk/reference_string/file_reference_string.hpp>
+#include <string>
 
 using namespace std;
 using namespace barretenberg;
@@ -17,9 +18,13 @@ namespace pippenger_common {
 #define BITSIZE 254
 #define C 10
 size_t NUM_POINTS = 1 << 11;
+std::string DEBUGFILE = "./debugBuckets.txt";
 
 typedef element<fq_gpu, fr_gpu> point_t;
 typedef fr_gpu scalar_t;
+
+
+point_t host_buckets[26624 * sizeof(point_t)];
 
 /**
  * Allocate device storage and buffers 
@@ -93,6 +98,12 @@ class pippenger_t {
         void execute_cub_routines(pippenger_t &config, cub_routines *params, cudaStream_t stream);
 
         void calculate_windows(pippenger_t &config, size_t npoints);
+
+        /**
+        start is the beginning of the set of buckets you want to output, and end is the end of the set of buckets you want to output
+        ///NB: it is up to the caller of the function to know that the host/device has enough memory to carry out this operation
+        */
+        void output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end);
 
         device_ptr<point_t> device_base_ptrs;
         device_ptr<scalar_t> device_scalar_ptrs;

@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace pippenger_common {
-    point_t host_buckets[26624 * sizeof(point_t)];
+    
 
 /**
  * Execute bucket method
@@ -24,8 +24,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     //test for printing on master
     
-    transfer_field_elements_to_host(config, host_buckets, buckets, stream);
-    cout << "First Element After Initialization: " << host_buckets[0] << endl;
+    //transfer_field_elements_to_host(config, host_buckets, buckets, stream);
+    //cout << "First Element After Initialization: " << host_buckets[0] << endl;
     
 
     // Scalars decomposition kernel
@@ -291,6 +291,22 @@ void pippenger_t<point_t, scalar_t>::print_result(g1_gpu::element *result_1, g1_
     for (int i = 0; i < LIMBS; i++) {
         printf("result_bucket_method_msm is: %zu\n", result_2[0][0].z.data[i]);
     }
+}
+
+/**
+start is the beginning of the set of buckets you want to output, and end is the end of the set of buckets you want to output
+///NB: it is up to the caller of the function to know that the host/device has enough memory to carry out this operation
+*/
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end){
+    transfer_field_elements_to_host(config, host_buckets, device_buckets, stream);//transfer bucket data from device to host
+    ofstream debugFile;
+    debugFile.open(DEBUGFILE);
+    for(int i = start; i < end; i++){
+        debugFile << host_buckets[i] << endl;
+    }
+    debugFile.close();
+    return;
 }
 
 }

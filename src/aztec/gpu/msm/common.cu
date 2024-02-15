@@ -22,10 +22,6 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); 
 
-    //test for printing on master
-    
-    //transfer_field_elements_to_host(config, host_buckets, buckets, stream);
-    //cout << "First Element After Initialization: " << host_buckets[0] << endl;
     
 
     // Scalars decomposition kernel
@@ -36,6 +32,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
+
+    output_to_debug(config, buckets, stream, 0, 500);//testing to print first four buckets
 
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
@@ -302,6 +300,10 @@ void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_
     transfer_field_elements_to_host(config, host_buckets, device_buckets, stream);//transfer bucket data from device to host
     ofstream debugFile;
     debugFile.open(DEBUGFILE);
+    if(!(debugFile.is_open())){
+        cout << "Error Opening Debug File" << endl;
+        exit(1);
+    }
     for(int i = start; i < end; i++){
         debugFile << host_buckets[i] << endl;
     }

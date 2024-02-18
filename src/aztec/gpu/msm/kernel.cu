@@ -190,6 +190,8 @@ __global__ void initialize_buckets_kernel(g1_gpu::element *bucket) {
     fq_gpu::load(fq_gpu::zero().data[tid % 4], bucket[subgroup + (subgroup_size * blockIdx.x)].x.data[tid % 4]);
     fq_gpu::load(fq_gpu::zero().data[tid % 4], bucket[subgroup + (subgroup_size * blockIdx.x)].y.data[tid % 4]);
     fq_gpu::load(fq_gpu::zero().data[tid % 4], bucket[subgroup + (subgroup_size * blockIdx.x)].z.data[tid % 4]);
+
+    
 }
 
 /**
@@ -217,7 +219,9 @@ __device__ __forceinline__ uint64_t decompose_scalar_digit(fr_gpu scalar, unsign
  * Decompose b-bit scalar into c-bit scalar, where c <= b
  */
 __global__ void split_scalars_kernel
-(unsigned *bucket_indices, unsigned *point_indices, fr_gpu *scalars, unsigned npoints, unsigned num_bucket_modules, unsigned c) {         
+(unsigned *bucket_indices, unsigned *point_indices, fr_gpu *scalars, unsigned npoints, unsigned num_bucket_modules, unsigned c) {   
+    
+    __syncthreads();//trying this bc the data should be caught up here to continue computations right?   
     unsigned bucket_index;
     unsigned current_index;
     fr_gpu scalar;

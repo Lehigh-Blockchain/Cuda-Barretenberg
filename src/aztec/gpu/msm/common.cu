@@ -3,6 +3,7 @@
 #include <vector>
 
 namespace pippenger_common {
+    point_t host_buckets[26624 * sizeof(point_t)];
 
 /**
  * Execute bucket method
@@ -20,6 +21,12 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     unsigned NUM_BLOCKS = (config.num_buckets + NUM_THREADS - 1) / NUM_THREADS;
     CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); 
+
+    //test for printing on master
+    
+    transfer_field_elements_to_host(config, host_buckets, buckets, stream);
+    cout << "First Element After Initialization: " << host_buckets[0] << endl;
+    
 
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
@@ -179,6 +186,33 @@ template <class point_t, class scalar_t>
 void pippenger_t<point_t, scalar_t>::transfer_scalars_to_device(
 pippenger_t &config, scalar_t *device_scalar_ptrs, fr *scalars, cudaStream_t stream) {
     CUDA_WRAPPER(cudaMemcpyAsync(device_scalar_ptrs, scalars, NUM_POINTS * LIMBS * sizeof(uint64_t), cudaMemcpyHostToDevice, stream));
+}
+
+/**
+ * Transfer field elements to host device for debugging purposes
+ */
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::transfer_field_elements_to_host(
+pippenger_t &config, point_t* host_buckets, point_t* buckets, cudaStream_t stream) {
+    CUDA_WRAPPER(cudaMemcpyAsync(host_buckets, buckets, num_buckets * sizeof(point_t), cudaMemcpyDeviceToHost, stream)); // multiply by 4 to account for the 4 elements being printed in field.cuh
+}
+
+/**
+ * Transfer base points to CPU device
+ */
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::transfer_bases_to_host(
+pippenger_t &config, point_t *device_bases_ptrs, const point_t *point_buckets, cudaStream_t stream) {    
+    CUDA_WRAPPER(cudaMemcpyAsync(device_bases_ptrs, point_buckets, NUM_POINTS * LIMBS * sizeof(uint64_t), cudaMemcpyDeviceToHost, stream));
+}
+
+/**
+ * Transfer bucket offsets to CPU device
+ */
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::transfer_offsets_to_host(
+pippenger_t &config, unsigned *host_offsets, unsigned *device_offsets, cudaStream_t stream) {    
+    CUDA_WRAPPER(cudaMemcpyAsync(host_offsets, device_offsets, num_buckets * sizeof(unsigned), cudaMemcpyDeviceToHost, stream));
 }
 
 /**

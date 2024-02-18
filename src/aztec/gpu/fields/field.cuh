@@ -220,6 +220,11 @@ class field_gpu {
         __device__ __forceinline__ static var from_monty(var x, var &res);
 
         __device__ __forceinline__ static var neg(var &x, var &res);
+
+        //For debugging, this print ties directly into the print statement found in element.cuh on line 31
+        friend std::ostream& operator<<(std::ostream &os, field_gpu const &m) { 
+            return os << m.data[0] << m.data[1] << m.data[2] << m.data[3] << endl;
+        }
 };
 typedef field_gpu<BN254_MOD_BASE> fq_gpu;
 typedef field_gpu<BN254_MOD_SCALAR> fr_gpu;

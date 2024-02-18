@@ -24,13 +24,6 @@ class element {
         __device__ __forceinline__ element(const fq_gpu &a, const fq_gpu &b, const fq_gpu &c) noexcept;
         
         __device__ __forceinline__ element(const element& other) noexcept;
-
-        /*
-        Print statement for debugging purposes
-        */
-        friend std::ostream& operator<<(std::ostream& os, element const & tc) {
-            return os << "x = " << tc.x << ", y = " << tc.y << ", z = " << tc.z << endl;
-    }
 };
 
 /* -------------------------- Affine Representation ---------------------------------------------- */

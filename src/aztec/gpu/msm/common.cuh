@@ -103,7 +103,7 @@ class pippenger_t {
         start is the beginning of the set of buckets you want to output, and end is the end of the set of buckets you want to output
         ///NB: it is up to the caller of the function to know that the host/device has enough memory to carry out this operation
         */
-        void output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end);
+        void output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end, unsigned *bucket_offsets);
 
         device_ptr<point_t> device_base_ptrs;
         device_ptr<scalar_t> device_scalar_ptrs;

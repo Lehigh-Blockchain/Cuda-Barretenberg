@@ -32,8 +32,20 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
+    
+    // Transfer bucket offsets to host for better visibility when debug printing
+    cout << "Here" << endl;
+    cudaDeviceSynchronize();
+    unsigned *host_bucket_offsets; // needs memory to be assigned potench the issue of seg faulting
+    cudaMallocHost(host_bucket_offsets, config.params->bucket_offsets.size());
 
-    output_to_debug(config, buckets, stream, 0, 500);//testing to print first four buckets
+    cout << "here as well" << endl;
+
+    transfer_offsets_to_host(config, host_bucket_offsets, config.params->bucket_offsets, stream);
+
+    cout << "carly rae jepsen" << endl;
+
+    output_to_debug(config, buckets, stream, 0, config.npoints * config.num_buckets, host_bucket_offsets);//testing to print buckets
 
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
@@ -296,7 +308,7 @@ start is the beginning of the set of buckets you want to output, and end is the 
 ///NB: it is up to the caller of the function to know that the host/device has enough memory to carry out this operation
 */
 template <class point_t, class scalar_t>
-void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end){
+void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end, unsigned* bucket_offsets){
     transfer_field_elements_to_host(config, host_buckets, device_buckets, stream);//transfer bucket data from device to host
     ofstream debugFile;
     debugFile.open(DEBUGFILE);
@@ -304,9 +316,15 @@ void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_
         cout << "Error Opening Debug File" << endl;
         exit(1);
     }
-    for(int i = start; i < end; i++){
-        debugFile << host_buckets[i] << endl;
+    for (unsigned i = 0; i < config.num_buckets; i++) {
+        debugFile << "Bucket: " << i << endl;
+        for (int j = 0; j < bucket_offsets[i]; j++) {
+            debugFile << host_buckets[j] << endl;
+        }
     }
+    // for(int i = start; i < end; i++){
+    //     debugFile << host_buckets[i] << endl;
+    // }
     debugFile.close();
     return;
 }

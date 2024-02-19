@@ -36,8 +36,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Transfer bucket offsets to host for better visibility when debug printing
     cout << "Here" << endl;
     cudaDeviceSynchronize();
-    unsigned *host_bucket_offsets; // needs memory to be assigned potench the issue of seg faulting
-    cudaMallocHost(host_bucket_offsets, config.params->bucket_offsets.size());
+    unsigned host_bucket_offsets[config.num_buckets]; // needs memory to be assigned potench the issue of seg faulting
+    //cudaMallocHost(host_bucket_offsets, sizeof(config.params->bucket_offsets));
 
     cout << "here as well" << endl;
 
@@ -45,7 +45,12 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "carly rae jepsen" << endl;
 
-    output_to_debug(config, buckets, stream, 0, config.npoints * config.num_buckets, host_bucket_offsets);//testing to print buckets
+    long total_points = 0;
+    for (int i = 0; i < (sizeof(host_bucket_offsets) / sizeof(unsigned)); i++) { total_points += host_bucket_offsets[i]; }
+
+    cout << "this is crazy, but here's my number" << endl;
+
+    output_to_debug(config, buckets, stream, 0, total_points, host_bucket_offsets);//testing to print buckets
 
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;

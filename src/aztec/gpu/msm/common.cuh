@@ -17,7 +17,8 @@ namespace pippenger_common {
 
 #define BITSIZE 254
 #define C 10
-size_t NUM_POINTS = 1 << 11;
+/*EDITED FROM 11 to 7*/
+size_t NUM_POINTS = 1 << 7;
 std::string DEBUGFILE = "./debugBuckets.txt";//IMPORTANT NOTE: This file exists in ~/build/bin/
 
 typedef element<fq_gpu, fr_gpu> point_t;

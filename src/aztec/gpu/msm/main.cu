@@ -7,6 +7,7 @@
 #include <polynomials/polynomial_arithmetic.hpp>
 #include <iostream>
 #include <fstream>
+#include <sys/wait.h>
 
 using namespace std;
 using namespace pippenger_common;
@@ -40,9 +41,14 @@ int main(int, char**) {
     // Execute "Pippenger's Bucket Method" kernel
     g1_gpu::element **result_2 = msm->msm_bucket_method(context, points, &scalars[0], num_streams);
 
+
+
     // Print results 
     context->pipp.print_result(result_1, result_2);
 
     // Verify the final results are equal
     context->pipp.verify_result(result_1, result_2);
+
+    int status = 0;
+    while ((wait(&status)) > 0);
 }

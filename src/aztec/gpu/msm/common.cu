@@ -1,6 +1,7 @@
 #include "kernel.cu"
 #include <iostream>
 #include <vector>
+#include <sys/wait.h>
 
 namespace pippenger_common {
     
@@ -92,6 +93,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     CUDA_WRAPPER(cudaFree(final_sum));
     CUDA_WRAPPER(cudaFree(res));
 
+    
     return res;
 }
 
@@ -315,7 +317,7 @@ start is the beginning of the set of buckets you want to output, and end is the 
 template <class point_t, class scalar_t>
 void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end, unsigned* bucket_offsets){
     transfer_field_elements_to_host(config, host_buckets, device_buckets, stream);//transfer bucket data from device to host
-    int pid = fork();
+    pid_t pid = fork();
     if(pid == -1){
         cout << "Unable to create process for debug file" << endl;
         return;//returning instead of error so that the msm can still complete its calculation successfully
@@ -329,7 +331,7 @@ void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_
         cout << "Error Opening Debug File" << endl;
         exit(1);
     }
-    for (unsigned i = 0; i < config.num_buckets; i++) {
+    for (unsigned i = 0; i < (config.num_buckets / 32); i++) { //CHANGED UPPER BOUND FOR TEMPORARY DEBUGGIN PURPOSES
         debugFile << "Bucket: " << i << endl;
         for (int j = 0; j < bucket_offsets[i]; j++) {
             debugFile << host_buckets[j] << endl;
@@ -339,7 +341,10 @@ void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_
     //     debugFile << host_buckets[i] << endl;
     // }
     debugFile.close();
+    cout << "Finished printing buckets to debugging file. Killing seperate process" << endl;
     exit(0);//killing process
 }
+
+
 
 }

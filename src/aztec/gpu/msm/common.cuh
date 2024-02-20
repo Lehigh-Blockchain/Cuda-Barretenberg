@@ -106,6 +106,8 @@ class pippenger_t {
         */
         void output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end, unsigned *bucket_offsets);
 
+        
+
         device_ptr<point_t> device_base_ptrs;
         device_ptr<scalar_t> device_scalar_ptrs;
         cudaStream_t *streams;

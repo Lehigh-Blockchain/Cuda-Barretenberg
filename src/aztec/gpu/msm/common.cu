@@ -315,6 +315,14 @@ start is the beginning of the set of buckets you want to output, and end is the 
 template <class point_t, class scalar_t>
 void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end, unsigned* bucket_offsets){
     transfer_field_elements_to_host(config, host_buckets, device_buckets, stream);//transfer bucket data from device to host
+    int pid = fork();
+    if(pid == -1){
+        cout << "Unable to create process for debug file" << endl;
+        return;//returning instead of error so that the msm can still complete its calculation successfully
+    }else if(pid > 0){//parent process returning back to launch of kernels
+        return;
+    }
+    //new process to print files
     ofstream debugFile;
     debugFile.open(DEBUGFILE);
     if(!(debugFile.is_open())){
@@ -331,7 +339,7 @@ void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_
     //     debugFile << host_buckets[i] << endl;
     // }
     debugFile.close();
-    return;
+    exit(0);//killing process
 }
 
 }

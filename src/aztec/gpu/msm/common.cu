@@ -128,9 +128,11 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     transfer_offsets_to_host(config, bucket_offsets_host, params->bucket_offsets, stream);
 
-    for (int i = 0; i < sizeof(bucket_offsets_host); i++) {
-        cout << "Offset for bucket " << i << ": " << bucket_offsets_host[i] << endl;;
-    }
+    // for (int i = 0; i < sizeof(bucket_offsets_host); i++) {
+    //     cout << "Offset for bucket " << i << ": " << bucket_offsets_host[i] << endl;;
+    // }
+
+    cout << "Size of bucket offsets: " << sizeof(bucket_offsets_host) << endl;
 
     cout << "Cub routines executed after Split Scalars Kernel" << endl;
 
@@ -180,11 +182,18 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
     bucket_running_sum_kernel<<<26, 4, 0, stream>>>(buckets, final_sum, c);
 
-    
+    cudaStreamSynchronize(stream);
+
+    auto res23 = cudaGetLastError();
+    cout << "Cuda Error After Accumulate Buckets: " << res23 << endl;
+
+    cudaStreamSynchronize(stream);
 
     cout << "Bucket Running Sum kernel lauched" << endl;
     auto res3 = cudaGetLastError();
     cout << "Cuda Error After Bucket Running Sum: " << res3 << endl;
+
+    cudaStreamSynchronize(stream);
 
     // Final accumulation kernel
     point_t *res;
@@ -192,6 +201,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     final_accumulation_kernel<<<1, 1, 0, stream>>>(final_sum, res, windows, c);
 
     cout << "Final Accumulation kernel launched" << endl;
+
+    cudaStreamSynchronize(stream);
 
     auto res4 = cudaGetLastError();
     cout << "Cuda Error After Final Accumulation: " << res4 << endl;
@@ -208,7 +219,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cout << "Checking for errors" << endl;
 
 
-    // Free host and device memory 
+    //Free host and device memory 
     CUDA_WRAPPER(cudaFreeHost(points));
     CUDA_WRAPPER(cudaFreeHost(scalars));
     CUDA_WRAPPER(cudaFreeAsync(buckets, stream));

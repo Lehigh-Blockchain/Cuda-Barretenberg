@@ -316,9 +316,10 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
 
     point_t zero_element;
 
-    for(int i = 0; i < num_buckets; i++) {
-        thrust::reduce(thrust::device, buckets, buckets + sizeof(buckets), zero_element, binaryElementAdd());
-    }
+    // for(int i = 0; i < num_buckets; i++) {
+    //     thrust::reduce(thrust::device, buckets, buckets + sizeof(buckets), zero_element, binaryElementAdd());
+    // }
+    thrust::reduce(thrust::device, buckets, buckets + sizeof(buckets), zero_element, binaryElementAdd());
 
     /// NB: Unsure how to do this next bit: what we want to do is use thrust::reduce to add up all the points in the
     /// individual buckets, and then return buckets with buckets[bucket_index] modified to be a single element returned

@@ -249,33 +249,33 @@ __global__ void split_scalars_kernel
  */
 struct binaryElementAdd : std::binary_function<point_t, point_t, point_t> {
     g1_gpu::element __device__ operator()(point_t element_a_point, point_t element_b_point) const { 
-        g1_gpu::element result(element_a_point);
-        g1_gpu::element element_a(element_a_point);
-        g1_gpu::element element_b(element_b_point);
+        point_t result(element_a_point);
+        point_t element_a(element_a_point);
+        point_t element_b(element_b_point);
 
         g1_gpu::add(
             //no need to concern with tid things that are handled in the accumulate_buckets kernel, thrust will provide
-            *element_a.x.data,
-            *element_a.y.data,
-            *element_a.z.data,
-            *element_b.x.data,
-            *element_b.y.data,
-            *element_b.z.data,
-            *result.x.data,
-            *result.y.data,
-            *result.z.data
+            element_a.x.data[1],
+            element_a.y.data[1],
+            element_a.z.data[1],
+            element_b.x.data[1],
+            element_b.y.data[1],
+            element_b.z.data[1],
+            result.x.data[1],
+            result.y.data[1],
+            result.z.data[1]
         );
 
-        if (fq_gpu::is_zero(*result.x.data) && 
-            fq_gpu::is_zero(*result.y.data) && 
-            fq_gpu::is_zero(*result.z.data)) {
+        if (fq_gpu::is_zero(result.x.data[1]) && 
+            fq_gpu::is_zero(result.y.data[1]) && 
+            fq_gpu::is_zero(result.z.data[1])) {
                 g1_gpu::doubling(
-                    *element_b.x.data,
-                    *element_b.y.data,
-                    *element_b.z.data,
-                    *result.x.data,
-                    *result.y.data,
-                    *result.z.data
+                    element_b.x.data[1],
+                    element_b.y.data[1],
+                    element_b.z.data[1],
+                    result.x.data[1],
+                    result.y.data[1],
+                    result.z.data[1]
                 );
         }
         return (point_t) result;
@@ -311,6 +311,8 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
         return;
     }
 
+    printf("i am not a little boy.\n");
+
     //The following thrust::reduce call should generate CUDA code that executes our reduction problem as a
     //tree reduce. This should scale this kernel from O(n/4) to O(lgn).
 
@@ -319,7 +321,9 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     // for(int i = 0; i < num_buckets; i++) {
     //     thrust::reduce(thrust::device, buckets, buckets + sizeof(buckets), zero_element, binaryElementAdd());
     // }
-    thrust::reduce(thrust::device, buckets, buckets + sizeof(buckets), zero_element, binaryElementAdd());
+    thrust::reduce(thrust::device, buckets, buckets + 10, zero_element, binaryElementAdd());
+
+    printf("i am a big boy.\n");
 
     /// NB: Unsure how to do this next bit: what we want to do is use thrust::reduce to add up all the points in the
     /// individual buckets, and then return buckets with buckets[bucket_index] modified to be a single element returned

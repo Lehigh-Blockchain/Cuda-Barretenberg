@@ -137,8 +137,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     cout << "Cub routines executed after Split Scalars Kernel" << endl;
 
     // Bucket accumulation kernel
-    unsigned NUM_THREADS_2 = 1 << 8;
-    unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2) * 4;
+    unsigned NUM_THREADS_2 = 1 << 6;
+    unsigned NUM_BLOCKS_2 = ((config.num_buckets + NUM_THREADS_2 - 1) / NUM_THREADS_2);
     //thrust vector declaration
     
 

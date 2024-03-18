@@ -16,7 +16,7 @@ namespace pippenger_common {
 
 #define BITSIZE 254
 #define C 10
-size_t NUM_POINTS = 1 << 11;
+size_t NUM_POINTS = 1 << 4;
 
 typedef element<fq_gpu, fr_gpu> point_t;
 typedef fr_gpu scalar_t;

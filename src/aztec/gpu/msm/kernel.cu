@@ -255,27 +255,27 @@ struct binaryElementAdd : std::binary_function<point_t, point_t, point_t> {
 
         g1_gpu::add(
             //no need to concern with tid things that are handled in the accumulate_buckets kernel, thrust will provide
-            element_a.x.data[1],
-            element_a.y.data[1],
-            element_a.z.data[1],
-            element_b.x.data[1],
-            element_b.y.data[1],
-            element_b.z.data[1],
-            result.x.data[1],
-            result.y.data[1],
-            result.z.data[1]
+            element_a.x.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            element_a.y.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            element_a.z.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            element_b.x.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            element_b.y.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            element_b.z.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            result.x.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            result.y.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+            result.z.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4]
         );
 
-        if (fq_gpu::is_zero(result.x.data[1]) && 
-            fq_gpu::is_zero(result.y.data[1]) && 
-            fq_gpu::is_zero(result.z.data[1])) {
+        if (fq_gpu::is_zero(result.x.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4]) && 
+            fq_gpu::is_zero(result.y.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4]) && 
+            fq_gpu::is_zero(result.z.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4])) {
                 g1_gpu::doubling(
-                    element_b.x.data[1],
-                    element_b.y.data[1],
-                    element_b.z.data[1],
-                    result.x.data[1],
-                    result.y.data[1],
-                    result.z.data[1]
+                    element_b.x.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+                    element_b.y.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+                    element_b.z.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+                    result.x.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+                    result.y.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4],
+                    result.z.data[(blockIdx.x * blockDim.x + threadIdx.x) % 4]
                 );
         }
         return (point_t) result;
@@ -321,7 +321,9 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
     // for(int i = 0; i < num_buckets; i++) {
     //     thrust::reduce(thrust::device, buckets, buckets + sizeof(buckets), zero_element, binaryElementAdd());
     // }
-    thrust::reduce(thrust::device, buckets, buckets + 10, zero_element, binaryElementAdd());
+
+    ///NB: still get cuda 700 error when this is commented out
+    thrust::reduce(thrust::device, buckets, buckets + (4 *sizeof(buckets)), zero_element, binaryElementAdd());
 
     printf("i am a big boy.\n");
 

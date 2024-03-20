@@ -1,9 +1,10 @@
 #include "kernel.cu"
 #include <iostream>
 #include <vector>
+#include <sys/wait.h>
 
 namespace pippenger_common {
-    point_t host_buckets[26624 * sizeof(point_t)];
+    
 
 /**
  * Execute bucket method
@@ -22,10 +23,6 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     CUDA_WRAPPER(cudaMallocAsync(&buckets, config.num_buckets * 3 * 4 * sizeof(uint64_t), stream));
     initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); 
 
-    //test for printing on master
-    
-    transfer_field_elements_to_host(config, host_buckets, buckets, stream);
-    cout << "First Element After Initialization: " << host_buckets[0] << endl;
     
 
     // Scalars decomposition kernel
@@ -36,6 +33,25 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     // Execute CUB routines for determining bucket sizes, offsets, etc. 
     execute_cub_routines(config, config.params, stream);
+    
+    // Transfer bucket offsets to host for better visibility when debug printing
+    cout << "Here" << endl;
+    cudaDeviceSynchronize();
+    unsigned host_bucket_offsets[config.num_buckets]; // needs memory to be assigned potench the issue of seg faulting
+    //cudaMallocHost(host_bucket_offsets, sizeof(config.params->bucket_offsets));
+
+    cout << "here as well" << endl;
+
+    transfer_offsets_to_host(config, host_bucket_offsets, config.params->bucket_offsets, stream);
+
+    cout << "carly rae jepsen" << endl;
+
+    long total_points = 0;
+    for (int i = 0; i < (sizeof(host_bucket_offsets) / sizeof(unsigned)); i++) { total_points += host_bucket_offsets[i]; }
+
+    cout << "this is crazy, but here's my number" << endl;
+
+    output_to_debug(config, buckets, stream, 0, total_points, host_bucket_offsets);//testing to print buckets
 
     // Bucket accumulation kernel
     unsigned NUM_THREADS_2 = 1 << 8;
@@ -77,6 +93,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     CUDA_WRAPPER(cudaFree(final_sum));
     CUDA_WRAPPER(cudaFree(res));
 
+    
     return res;
 }
 
@@ -292,5 +309,42 @@ void pippenger_t<point_t, scalar_t>::print_result(g1_gpu::element *result_1, g1_
         printf("result_bucket_method_msm is: %zu\n", result_2[0][0].z.data[i]);
     }
 }
+
+/**
+start is the beginning of the set of buckets you want to output, and end is the end of the set of buckets you want to output
+///NB: it is up to the caller of the function to know that the host/device has enough memory to carry out this operation
+*/
+template <class point_t, class scalar_t>
+void pippenger_t<point_t, scalar_t>::output_to_debug(pippenger_t &config, point_t* device_buckets, cudaStream_t stream, size_t start, size_t end, unsigned* bucket_offsets){
+    transfer_field_elements_to_host(config, host_buckets, device_buckets, stream);//transfer bucket data from device to host
+    pid_t pid = fork();
+    if(pid == -1){
+        cout << "Unable to create process for debug file" << endl;
+        return;//returning instead of error so that the msm can still complete its calculation successfully
+    }else if(pid > 0){//parent process returning back to launch of kernels
+        return;
+    }
+    //new process to print files
+    ofstream debugFile;
+    debugFile.open(DEBUGFILE);
+    if(!(debugFile.is_open())){
+        cout << "Error Opening Debug File" << endl;
+        exit(1);
+    }
+    for (unsigned i = 0; i < (config.num_buckets / 32); i++) { //CHANGED UPPER BOUND FOR TEMPORARY DEBUGGIN PURPOSES
+        debugFile << "Bucket: " << i << endl;
+        for (int j = 0; j < bucket_offsets[i]; j++) {
+            debugFile << host_buckets[j] << endl;
+        }
+    }
+    // for(int i = start; i < end; i++){
+    //     debugFile << host_buckets[i] << endl;
+    // }
+    debugFile.close();
+    cout << "Finished printing buckets to debugging file. Killing seperate process" << endl;
+    exit(0);//killing process
+}
+
+
 
 }

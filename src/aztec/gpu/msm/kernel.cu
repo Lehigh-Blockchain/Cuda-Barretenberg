@@ -14,7 +14,7 @@ namespace pippenger_common {
 
 /* ----------------------------------------- Sum Reduction Kernels ---------------------------------------------- */
 
-/**
+/**a
  * Naive multiplication kernel
  */
 __global__ void multiplication_kernel(g1_gpu::element *point, fr_gpu *scalar, g1_gpu::element *result_vec, size_t npoints) { 
@@ -449,7 +449,7 @@ unsigned *point_indices, g1_gpu::element *points, unsigned num_buckets) {
 /** 
  * Running sum kernel that accumulates partial bucket sums using running sum method
  */
-__global__ void bucket_running_sum_kernel(g1_gpu::element *buckets, g1_gpu::element *final_sum, uint64_t c) {     
+__global__ void bucket_running_sum_kernel(g1_gpu::element *buckets, g1_gpu::element *final_sum, uint64_t c, unsigned num_buckets) {     
     // Global thread ID
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -460,10 +460,21 @@ __global__ void bucket_running_sum_kernel(g1_gpu::element *buckets, g1_gpu::elem
 
     g1_gpu::element line_sum;
 
+    // Debugging stuff
+    printf("Subgroup: %i\n", subgroup);
+    printf("Subgroup Size: %i\n", subgroup_size);
+    printf("blockIdx.x: %i\n", blockIdx.x);
+
+    // trying to see if buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1] can even exist 
+        // i.e. if buckets.size < any ((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1, then we confirm that the loads are going over
+    printf("buckets.size: %i\n", num_buckets);
+
+    //assert((subgroup + (subgroup_size * blockIdx.x) + 1) * (1 << c) - 1 <= num_buckets);//maybe buckets isn't actually num buckets
+    
     // Load intitial points
-    fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].x.data[tid % 4], line_sum.x.data[tid % 4]);
-    fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].y.data[tid % 4], line_sum.y.data[tid % 4]);
-    fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].z.data[tid % 4], line_sum.z.data[tid % 4]);
+    //fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].x.data[tid % 4], line_sum.x.data[tid % 4]);
+    //fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].y.data[tid % 4], line_sum.y.data[tid % 4]);
+    //fq_gpu::load(buckets[((subgroup + (subgroup_size * blockIdx.x)) + 1) * (1 << c) - 1].z.data[tid % 4], line_sum.z.data[tid % 4]);
     
     fq_gpu::load(line_sum.x.data[tid % 4], final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4]);
     fq_gpu::load(line_sum.y.data[tid % 4], final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4]);
@@ -472,45 +483,46 @@ __global__ void bucket_running_sum_kernel(g1_gpu::element *buckets, g1_gpu::elem
     // Sync loads
     __syncthreads();
 
+    //Convert to thrust?
     // Running sum method
-    for (unsigned i = (1 << c) - 2; i > 0; i--) {
-        g1_gpu::add(
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].x.data[tid % 4], 
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].y.data[tid % 4], 
-            buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].z.data[tid % 4],
-            line_sum.x.data[tid % 4],
-            line_sum.y.data[tid % 4],
-            line_sum.z.data[tid % 4],
-            line_sum.x.data[tid % 4],
-            line_sum.y.data[tid % 4],
-            line_sum.z.data[tid % 4]
-        );
+    // for (unsigned i = (1 << c) - 2; i > 0; i--) {
+    //     g1_gpu::add(
+    //         buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].x.data[tid % 4], 
+    //         buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].y.data[tid % 4], 
+    //         buckets[(subgroup + (subgroup_size * blockIdx.x)) * (1 << c) + i].z.data[tid % 4],
+    //         line_sum.x.data[tid % 4],
+    //         line_sum.y.data[tid % 4],
+    //         line_sum.z.data[tid % 4],
+    //         line_sum.x.data[tid % 4],
+    //         line_sum.y.data[tid % 4],
+    //         line_sum.z.data[tid % 4]
+    //     );
 
-        g1_gpu::add(
-            line_sum.x.data[tid % 4],
-            line_sum.y.data[tid % 4],
-            line_sum.z.data[tid % 4],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4],
-            final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4]
-        );
+    //     g1_gpu::add(
+    //         line_sum.x.data[tid % 4],
+    //         line_sum.y.data[tid % 4],
+    //         line_sum.z.data[tid % 4],
+    //         final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4],
+    //         final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4],
+    //         final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4],
+    //         final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4],
+    //         final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4],
+    //         final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4]
+    //     );
 
-        if (fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4]) && 
-            fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4]) && 
-            fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4])) {
-                g1_gpu::doubling(
-                    line_sum.x.data[tid % 4],
-                    line_sum.y.data[tid % 4],
-                    line_sum.z.data[tid % 4],
-                    final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4],
-                    final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4],
-                    final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4]
-                );
-        }
-    }
+    //     if (fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4]) && 
+    //         fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4]) && 
+    //         fq_gpu::is_zero(final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4])) {
+    //             g1_gpu::doubling(
+    //                 line_sum.x.data[tid % 4],
+    //                 line_sum.y.data[tid % 4],
+    //                 line_sum.z.data[tid % 4],
+    //                 final_sum[(subgroup + (subgroup_size * blockIdx.x))].x.data[tid % 4],
+    //                 final_sum[(subgroup + (subgroup_size * blockIdx.x))].y.data[tid % 4],
+    //                 final_sum[(subgroup + (subgroup_size * blockIdx.x))].z.data[tid % 4]
+    //             );
+    //     }
+    // }
 }
 
 /**

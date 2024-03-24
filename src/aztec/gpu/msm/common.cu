@@ -175,12 +175,15 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     //CONVERT THRUST BACK TO RAW POINTERS
     buckets = thrust::raw_pointer_cast(&deviceBuckets[0]);//conversion back to raw pointer for buckets
     ///NB: no need to free memory occupied by deviceBuckets as it will be done automatically when common is no longer in scope
+    cout << "Buckets size after raw pointer cast: " << sizeof(*buckets) * sizeof(point_t) << endl;//for debugging
+    ///NB: this could be a problem
 
 
     // Running sum kernel
     point_t *final_sum;
+    cout << "Windows: " << windows << endl;
     CUDA_WRAPPER(cudaMallocAsync(&final_sum, windows * 3 * 4 * sizeof(uint64_t), stream));
-    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(buckets, final_sum, c);
+    bucket_running_sum_kernel<<<26, 4, 0, stream>>>(buckets, final_sum, c, config.num_buckets);
 
     cudaStreamSynchronize(stream);
 

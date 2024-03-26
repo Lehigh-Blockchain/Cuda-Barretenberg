@@ -10,7 +10,7 @@
 
 using namespace waffle;
 
-constexpr size_t MAX_GATES = 1 << 3;
+constexpr size_t MAX_GATES = 1 << 5;
 
 void generate_test_plonk_circuit(StandardComposer& composer, size_t num_gates) {
     plonk::stdlib::field_t a(plonk::stdlib::witness_t(&composer, barretenberg::fr::random_element()));

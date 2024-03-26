@@ -40,7 +40,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     
     ///NB: Calling deviceBuckets.data() here is the same as saying thrust::device_ptr ptr = &deviceBuckets[0]; as in
     ///we retain information entered into deviceBuckets through passing the pointer
-    initialize_buckets_kernel<<<NUM_BLOCKS * 4, NUM_THREADS, 0, stream>>>(buckets); ///*thrust::raw_pointer_cast(deviceBuckets.data())*/ was used previously
+    initialize_buckets_kernel<<</*NUM_BLOCKS * 4*/1,1/* NUM_THREADS*/, 0, stream>>>(buckets); ///*thrust::raw_pointer_cast(deviceBuckets.data())*/ was used previously
 
     cout << "Buckets initialized, printing..." << endl;
 
@@ -49,7 +49,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Size of host buckets: " << sizeof(host_buckets) << endl;
 
-    transfer_field_elements_to_host(config, host_buckets, buckets, stream);
+    //transfer_field_elements_to_host(config, host_buckets, buckets, stream);
    
     cout << "Slob on my knob." << endl;
 
@@ -111,7 +111,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     // Scalars decomposition kernel
     CUDA_WRAPPER(cudaMallocAsync(&(params->bucket_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
     CUDA_WRAPPER(cudaMallocAsync(&(params->point_indices), sizeof(unsigned) * npoints * (windows + 1), stream));
-    split_scalars_kernel<<<NUM_POINTS / NUM_THREADS, NUM_THREADS, 0, stream>>>
+    split_scalars_kernel<<<1/*NUM_POINTS / NUM_THREADS*/,1 /*NUM_THREADS*/, 0, stream>>>
         (params->bucket_indices + npoints, params->point_indices + npoints, scalars, npoints, windows, c);
 
     cout << "Split Scalars kernel launched" << endl;
@@ -164,7 +164,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
 
     //accumulate buckets call
-    accumulate_buckets_kernel<<<NUM_BLOCKS_2, NUM_THREADS_2, 0, stream>>>
+    accumulate_buckets_kernel<<<1/*NUM_BLOCKS_2*/,1 /*NUM_THREADS_2*/, 0, stream>>>
         (thrust::raw_pointer_cast(deviceBuckets.data()), params->bucket_offsets, params->bucket_sizes, params->single_bucket_indices, 
         params->point_indices, points, config.num_buckets);
 
@@ -175,8 +175,14 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     //CONVERT THRUST BACK TO RAW POINTERS
     buckets = thrust::raw_pointer_cast(&deviceBuckets[0]);//conversion back to raw pointer for buckets
     ///NB: no need to free memory occupied by deviceBuckets as it will be done automatically when common is no longer in scope
-    cout << "Buckets size after raw pointer cast: " << sizeof(*buckets) * sizeof(point_t) << endl;//for debugging
+    //cout << "Buckets size after raw pointer cast: " << sizeof(*buckets) * sizeof(point_t) << endl;//for debugging
     ///NB: this could be a problem
+
+
+    transfer_field_elements_to_host(config, host_buckets, (point_t*)buckets, stream);//debugging bucket running sum kernel
+    for(int i = 0; i < 10; i++){
+        cout << "Point " << i << " : " << host_buckets[i] << endl;
+    }
 
 
     // Running sum kernel

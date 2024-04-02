@@ -170,7 +170,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     cout << "Accumulate Buckets Kernel launched" << endl;
     
-
+    transfer_field_elements_to_host(config, host_buckets, (point_t*)buckets, stream);
 
     //CONVERT THRUST BACK TO RAW POINTERS
     buckets = thrust::raw_pointer_cast(&deviceBuckets[0]);//conversion back to raw pointer for buckets
@@ -179,7 +179,7 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
     ///NB: this could be a problem
 
 
-    transfer_field_elements_to_host(config, host_buckets, (point_t*)buckets, stream);//debugging bucket running sum kernel
+    //transfer_field_elements_to_host(config, host_buckets, (point_t*)buckets, stream);//debugging bucket running sum kernel
     for(int i = 0; i < 10; i++){
         cout << "Point " << i << " : " << host_buckets[i] << endl;
     }

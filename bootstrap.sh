@@ -10,10 +10,10 @@ cd ./srs_db
 cd ..
 
 # Pick native toolchain file.
-TOOLCHAIN=x86_64-linux-clang
+TOOLCHAIN=x86_64-linux-gcc10
 
 # Build native.
 mkdir -p build && cd build
-cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DTOOLCHAIN=$TOOLCHAIN -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ ..
+cmake -DCMAKE_BUILD_TYPE=RelWithAssert -DTOOLCHAIN=$TOOLCHAIN -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/gcc ..
 cmake --build . --parallel
 cd ..

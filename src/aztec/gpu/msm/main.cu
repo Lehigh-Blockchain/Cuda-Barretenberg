@@ -14,6 +14,9 @@ using namespace waffle;
 using namespace barretenberg;
 
 int main(int, char**) {
+    //begin chrono execution timer for entire gpu execution
+    auto startTime = std::chrono::high_resolution_clock::now();
+
     // Initialize dynamic 'msm_t' object 
     msm_t<point_t, scalar_t> *msm = new msm_t<point_t, scalar_t>();
     
@@ -45,4 +48,9 @@ int main(int, char**) {
 
     // Verify the final results are equal
     context->pipp.verify_result(result_1, result_2);
+
+    //end chrono timer for entire gpu execution
+    auto endTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = endTime - startTime;
+    cout << "MSM execution time: " << duration.count() << " seconds" <<endl;
 }

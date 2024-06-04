@@ -14,8 +14,7 @@ using namespace waffle;
 using namespace barretenberg;
 
 int main(int, char**) {
-    //begin chrono execution timer for entire gpu execution
-    auto startTime = std::chrono::high_resolution_clock::now();
+    
 
     // Initialize dynamic 'msm_t' object 
     msm_t<point_t, scalar_t> *msm = new msm_t<point_t, scalar_t>();
@@ -40,8 +39,12 @@ int main(int, char**) {
     // Execute "Double-And-Add" reference kernel
     g1_gpu::element *result_1 = msm->msm_double_and_add(context, NUM_POINTS, points, &scalars[0]);
 
+    //begin chrono execution timer for entire gpu execution
+    auto startTime = std::chrono::high_resolution_clock::now();
     // Execute "Pippenger's Bucket Method" kernel
     g1_gpu::element **result_2 = msm->msm_bucket_method(context, points, &scalars[0], num_streams);
+    //end chrono timer for entire gpu execution
+    auto endTime = std::chrono::high_resolution_clock::now();
 
     // Print results 
     context->pipp.print_result(result_1, result_2);
@@ -49,8 +52,7 @@ int main(int, char**) {
     // Verify the final results are equal
     context->pipp.verify_result(result_1, result_2);
 
-    //end chrono timer for entire gpu execution
-    auto endTime = std::chrono::high_resolution_clock::now();
+    
     std::chrono::duration<double> duration = endTime - startTime;
-    cout << "MSM execution time: " << duration.count() << " seconds" <<endl;
+    cout << "MSM execution time: " << duration.count() << " seconds" <<endl;//this should work :)
 }

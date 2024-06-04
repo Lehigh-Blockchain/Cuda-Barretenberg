@@ -142,13 +142,13 @@ template <class Fq, class Fr, class Params>
 barretenberg::group_elements::affine_element<Fq, Fr, Params> operator*(
     const barretenberg::group_elements::affine_element<Fq, Fr, Params>& base, const Fr& exponent) noexcept
 {
-    return barretenberg::group_elements::affine_element<Fq, Fr, Params>(barretenberg::group_elements::element(base) *
+    return barretenberg::group_elements::affine_element<Fq, Fr, Params>(barretenberg::group_elements::element<Fq, Fr, Params>(base) *
                                                                         exponent);
 }
-
-template <class Fq, class Fr, class Params>
-barretenberg::group_elements::affine_element<Fq, Fr, Params> operator*(
-    const barretenberg::group_elements::element<Fq, Fr, Params>& base, const Fr& exponent) noexcept
-{
-    return (barretenberg::group_elements::element(base) * exponent);
-}
+//
+//template <class Fq, class Fr, class Params>
+//barretenberg::group_elements::affine_element<Fq, Fr, Params> operator*(
+//    const barretenberg::group_elements::element<Fq, Fr, Params>& base, const Fr& exponent) noexcept
+//{
+//    return barretenberg::group_elements::affine_element<Fq, Fr, Params>(barretenberg::group_elements::element(base) * exponent);
+//}

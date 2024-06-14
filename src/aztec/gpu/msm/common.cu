@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace pippenger_common {
-    point_t host_buckets[26624 * sizeof(point_t)];
+  
 
 /**
  * Execute bucket method
@@ -24,8 +24,8 @@ pippenger_t &config, scalar_t *scalars, point_t *points, unsigned bitsize, unsig
 
     //test for printing on master
     
-    transfer_field_elements_to_host(config, host_buckets, buckets, stream);
-    cout << "First Element After Initialization: " << host_buckets[0] << endl;
+   
+ 
     
 
     // Scalars decomposition kernel

@@ -280,17 +280,18 @@ void pippenger_t<point_t, scalar_t>::print_result(g1_gpu::element *result_1, g1_
         printf("result_naive_msm is: %zu\n", result_1[0].z.data[i]);
     }
     printf("\n");
-    for (int i = 0; i < LIMBS; i++) {
-        printf("result_bucket_method_msm is: %zu\n", result_2[0][0].x.data[i]);
-    }
-    printf("\n");
-    for (int i = 0; i < LIMBS; i++) {
-        printf("result_bucket_method_msm is: %zu\n", result_2[0][0].y.data[i]);
-    }
-    printf("\n");
-    for (int i = 0; i < LIMBS; i++) {
-        printf("result_bucket_method_msm is: %zu\n", result_2[0][0].z.data[i]);
-    }
+    //segfault def happening here, but why?
+    //for (int i = 0; i < LIMBS; i++) {
+    //    printf("result_bucket_method_msm is: %zu\n", result_2[0][0].x.data[i]);
+    //}
+    //printf("\n");
+    //for (int i = 0; i < LIMBS; i++) {
+    //    printf("result_bucket_method_msm is: %zu\n", result_2[0][0].y.data[i]);
+    //}
+    //printf("\n");
+    //for (int i = 0; i < LIMBS; i++) {
+    //    printf("result_bucket_method_msm is: %zu\n", result_2[0][0].z.data[i]);
+    //}
 }
 
 }

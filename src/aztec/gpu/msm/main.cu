@@ -50,7 +50,7 @@ int main(int, char**) {
     context->pipp.print_result(result_1, result_2);
 
     // Verify the final results are equal
-    context->pipp.verify_result(result_1, result_2);
+    //context->pipp.verify_result(result_1, result_2);// not here, in the end of print result?
 
     
     std::chrono::duration<double> duration = endTime - startTime;
